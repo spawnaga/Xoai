@@ -33,7 +33,7 @@ describe('API Context', () => {
       };
 
       const context: Context = {
-        db: {},
+        db: null as any,
         session: mockSession,
       };
 
@@ -43,7 +43,7 @@ describe('API Context', () => {
 
     it('should support null session', () => {
       const context: Context = {
-        db: {},
+        db: null as any,
         session: null,
       };
 

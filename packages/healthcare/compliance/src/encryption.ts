@@ -76,11 +76,12 @@ function generateIV(): Uint8Array {
 export async function encryptPHI(plaintext: string, encryptionKey: string): Promise<EncryptedData> {
   const key = await importKey(encryptionKey);
   const iv = generateIV();
+  const ivBuffer = new Uint8Array(iv.buffer.slice(0)) as BufferSource;
 
   const encrypted = await crypto.subtle.encrypt(
     {
       name: ALGORITHM,
-      iv,
+      iv: ivBuffer,
       tagLength: AUTH_TAG_LENGTH,
     },
     key,
@@ -95,9 +96,9 @@ export async function encryptPHI(plaintext: string, encryptionKey: string): Prom
   const authTag = encryptedArray.slice(authTagStart);
 
   return {
-    encrypted: bufferToHex(ciphertext.buffer),
-    iv: bufferToHex(iv.buffer),
-    authTag: bufferToHex(authTag.buffer),
+    encrypted: bufferToHex(ciphertext.buffer as ArrayBuffer),
+    iv: bufferToHex(iv.buffer as ArrayBuffer),
+    authTag: bufferToHex(authTag.buffer as ArrayBuffer),
   };
 }
 
@@ -106,7 +107,8 @@ export async function encryptPHI(plaintext: string, encryptionKey: string): Prom
  */
 export async function decryptPHI(data: EncryptedData, encryptionKey: string): Promise<string> {
   const key = await importKey(encryptionKey);
-  const iv = new Uint8Array(hexToBuffer(data.iv));
+  const ivBuffer = hexToBuffer(data.iv);
+  const iv = new Uint8Array(ivBuffer.slice(0)) as BufferSource;
 
   // Reconstruct the encrypted data with auth tag appended
   const ciphertext = new Uint8Array(hexToBuffer(data.encrypted));
@@ -115,6 +117,7 @@ export async function decryptPHI(data: EncryptedData, encryptionKey: string): Pr
   const combined = new Uint8Array(ciphertext.length + authTag.length);
   combined.set(ciphertext);
   combined.set(authTag, ciphertext.length);
+  const combinedBuffer = new Uint8Array(combined.buffer.slice(0)) as BufferSource;
 
   const decrypted = await crypto.subtle.decrypt(
     {
@@ -123,7 +126,7 @@ export async function decryptPHI(data: EncryptedData, encryptionKey: string): Pr
       tagLength: AUTH_TAG_LENGTH,
     },
     key,
-    combined.buffer
+    combinedBuffer
   );
 
   return bufferToString(decrypted);

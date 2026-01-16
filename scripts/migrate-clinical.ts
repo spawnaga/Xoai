@@ -4,7 +4,7 @@
  */
 
 import { MongoClient } from "mongodb";
-import { PrismaClient } from "@prisma/client";
+import { PrismaClient } from "@xoai/db";
 
 const MONGO_URI = process.env.MONGO_URI || "mongodb://localhost:27017/asclepius";
 const prisma = new PrismaClient();

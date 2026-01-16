@@ -21,7 +21,7 @@ describe('Auth Package', () => {
 
   describe('createAuthConfig', () => {
     it('should return config object', () => {
-      const config = createAuthConfig('mysql://localhost:3306/xoai');
+      const config = createAuthConfig();
 
       expect(config).toBeDefined();
       expect(config.providers).toBeDefined();
@@ -29,7 +29,7 @@ describe('Auth Package', () => {
     });
 
     it('should return default config structure', () => {
-      const config = createAuthConfig('mysql://localhost:3306/xoai');
+      const config = createAuthConfig();
 
       expect(config.session.strategy).toBe('jwt');
       expect(config.session.maxAge).toBeGreaterThan(0);
@@ -49,6 +49,7 @@ describe('Auth Package', () => {
         session: {
           strategy: 'jwt',
           maxAge: 3600,
+          updateAge: 300,
         },
       };
 
@@ -67,6 +68,7 @@ describe('Auth Package', () => {
         session: {
           strategy: 'database',
           maxAge: 7200,
+          updateAge: 600,
         },
       };
 
@@ -84,6 +86,7 @@ describe('Auth Package', () => {
         session: {
           strategy: 'jwt',
           maxAge: 86400,
+          updateAge: 900,
         },
       };
 
