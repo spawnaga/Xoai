@@ -129,7 +129,7 @@ export function ObservationList({ patients }: ObservationListProps) {
               </div>
             ) : (
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
-                {latestVitals.map((vital: { id: string; code: string; value: number | null; unit: string | null; effectiveDate: Date }) => {
+                {latestVitals.map((vital: { id: string; code: string; value: string | null; unit: string | null; effectiveDate: Date }) => {
                   const vitalInfo = vitalSignCodes[vital.code];
                   return (
                     <div key={vital.id} className="bg-white rounded-xl p-4 border border-slate-200 hover:shadow-md transition-shadow">
@@ -239,7 +239,7 @@ export function ObservationList({ patients }: ObservationListProps) {
                       id: string;
                       code: string;
                       display: string | null;
-                      value: number | null;
+                      value: string | null;
                       unit: string | null;
                       status: string;
                       effectiveDate: Date;

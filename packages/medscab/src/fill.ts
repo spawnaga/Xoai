@@ -417,12 +417,17 @@ export function canRefill(
     }
   }
 
+  // Extract days until eligible from first warning if present
+  const firstWarning = warnings[0];
+  const daysMatch = firstWarning?.match(/\d+/);
+  const daysUntilEligible = daysMatch?.[0] ? parseInt(daysMatch[0]) : 0;
+
   return {
     canRefill: errors.length === 0,
     errors,
     warnings,
     refillsRemaining: prescription.refillsRemaining,
-    daysUntilEligible: warnings.length > 0 ? parseInt(warnings[0].match(/\d+/)?.[0] || '0') : 0,
+    daysUntilEligible,
   };
 }
 

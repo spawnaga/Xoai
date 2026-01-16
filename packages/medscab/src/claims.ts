@@ -516,14 +516,20 @@ function simulateAdjudication(request: ClaimRequest): ClaimResponse {
   }
 
   // 15% rejection - select random reject code
-  const rejectScenarios = ['70', '75', '79', '88'];
-  const selectedReject = rejectScenarios[Math.floor(Math.random() * rejectScenarios.length)];
+  const rejectScenarios = ['70', '75', '79', '88'] as const;
+  const selectedReject = rejectScenarios[Math.floor(Math.random() * rejectScenarios.length)] ?? '70';
+  const rejectCode = REJECT_CODES[selectedReject];
+
+  // This should always be defined since we control the array, but provide fallback for type safety
+  if (!rejectCode) {
+    throw new Error(`Invalid reject code: ${selectedReject}`);
+  }
 
   return {
     transactionId: generateTransactionId(),
     status: 'rejected',
     responseCode: 'R',
-    rejectCodes: [REJECT_CODES[selectedReject]],
+    rejectCodes: [rejectCode],
     patientPayAmount: request.pricing.grossAmountDue,
     timestamp: new Date(),
   };

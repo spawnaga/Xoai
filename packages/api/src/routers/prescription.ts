@@ -388,17 +388,22 @@ export const prescriptionRouter = router({
         }
 
         // Get latest creatinine clearance observation if available
+        // LOINC codes for creatinine clearance: 2164-2 (serum creatinine), 33914-3 (eGFR)
         const crClObs = await ctx.db.observation.findFirst({
           where: {
             patientId: input.patientId,
-            type: 'LABORATORY',
-            code: { contains: 'creatinine' },
+            OR: [
+              { code: { contains: 'creatinine' } },
+              { display: { contains: 'creatinine' } },
+              { code: '2164-2' }, // Serum creatinine
+              { code: '33914-3' }, // eGFR
+            ],
           },
-          orderBy: { effectiveDateTime: 'desc' },
+          orderBy: { effectiveDate: 'desc' },
         });
 
-        if (crClObs?.valueQuantity) {
-          creatinineClearance = parseFloat(crClObs.valueQuantity.toString());
+        if (crClObs?.value) {
+          creatinineClearance = parseFloat(crClObs.value);
         }
       }
 

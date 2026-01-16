@@ -1,9 +1,14 @@
 import 'server-only';
 
 import { cache } from 'react';
-import { appRouter, type Context } from '@xoai/api';
+import { appRouter, type Context, type AppRouter } from '@xoai/api';
 import { getSession } from './auth';
 import { db } from '@xoai/db';
+
+/**
+ * Server caller type - the return type of createCaller
+ */
+type RouterCaller = ReturnType<typeof appRouter.createCaller>;
 
 /**
  * Server-Side tRPC Caller
@@ -65,7 +70,7 @@ export const createServerContext = cache(async (): Promise<Context> => {
  * }
  * ```
  */
-export const getServerCaller = cache(async () => {
+export const getServerCaller = cache(async (): Promise<RouterCaller> => {
   const ctx = await createServerContext();
   return appRouter.createCaller(ctx);
 });

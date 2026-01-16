@@ -321,8 +321,9 @@ function applyPatientAdjustments(
   // Weight-based dosing
   if (input.patientWeight && guideline.standardDose.includes('mg/kg')) {
     const match = guideline.standardDose.match(/(\d+(?:\.\d+)?)\s*mg\/kg/);
-    if (match) {
-      const mgPerKg = parseFloat(match[1]);
+    const matchValue = match?.[1];
+    if (match && matchValue) {
+      const mgPerKg = parseFloat(matchValue);
       const calculatedDose = Math.round(mgPerKg * input.patientWeight);
       notes.push(`Weight-based dose: ${calculatedDose} mg (${mgPerKg} mg/kg × ${input.patientWeight} kg)`);
     }
@@ -401,7 +402,12 @@ export function getStandardFrequencies(route: string): string[] {
     ],
   };
 
-  return frequencies[route.toLowerCase()] || frequencies.oral;
+  const routeKey = route.toLowerCase();
+  const routeFrequencies = frequencies[routeKey];
+  const oralFrequencies = frequencies['oral'];
+
+  // Return route-specific frequencies or default to oral
+  return routeFrequencies ?? oralFrequencies ?? ['Once daily', 'Twice daily'];
 }
 
 /**

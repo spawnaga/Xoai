@@ -1,7 +1,6 @@
 import Link from 'next/link';
 import type { Metadata } from 'next';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
+import { getSession } from '@/lib/auth';
 
 /**
  * Landing Page - Server Component
@@ -125,7 +124,7 @@ const colorClasses: Record<string, { bg: string; text: string }> = {
 
 export default async function Home() {
   // Server-side session check for navigation customization
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   const isAuthenticated = !!session?.user;
 
   return (
@@ -248,13 +247,13 @@ export default async function Home() {
 
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
             {features.map((feature) => {
-              const colors = colorClasses[feature.color] || colorClasses.blue;
+              const colors = colorClasses[feature.color] ?? colorClasses.blue;
               return (
                 <div
                   key={feature.title}
                   className="group p-6 bg-slate-50 rounded-2xl hover:bg-white hover:shadow-xl transition-all duration-300 border border-transparent hover:border-slate-200"
                 >
-                  <div className={`inline-flex p-3 rounded-xl ${colors.bg} ${colors.text} mb-4`}>
+                  <div className={`inline-flex p-3 rounded-xl ${colors?.bg ?? 'bg-blue-100'} ${colors?.text ?? 'text-blue-600'} mb-4`}>
                     <FeatureIcon type={feature.icon} className="w-6 h-6" />
                   </div>
                   <h3 className="text-lg font-semibold text-slate-900 mb-2 group-hover:text-blue-600 transition-colors">

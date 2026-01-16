@@ -498,6 +498,7 @@ export function isDeliveryDay(
 ): boolean {
   const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'] as const;
   const dayOfWeek = dayNames[date.getDay()];
+  if (!dayOfWeek) return false;
   return schedule.regularDays.includes(dayOfWeek);
 }
 
@@ -513,7 +514,9 @@ export function getNextDeliveryDate(
 
   // Check if we can still make today's delivery
   if (isDeliveryDay(schedule, result)) {
-    const [hours, minutes] = schedule.cutoffTime.split(':').map(Number);
+    const timeParts = schedule.cutoffTime.split(':').map(Number);
+    const hours = timeParts[0] ?? 0;
+    const minutes = timeParts[1] ?? 0;
     const cutoff = new Date(result);
     cutoff.setHours(hours, minutes, 0, 0);
 
@@ -526,7 +529,7 @@ export function getNextDeliveryDate(
   for (let i = 1; i <= 7; i++) {
     result.setDate(result.getDate() + 1);
     const dayOfWeek = dayNames[result.getDay()];
-    if (schedule.regularDays.includes(dayOfWeek)) {
+    if (dayOfWeek && schedule.regularDays.includes(dayOfWeek)) {
       return result;
     }
   }

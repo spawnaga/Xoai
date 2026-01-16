@@ -352,23 +352,33 @@ export function isValidDEANumber(deaNumber: string): boolean {
 
   // First letter must be A, B, C, D, E, F, G, H, J, K, L, M, P, R, S, T, U, X
   const validFirstLetters = 'ABCDEFGHJKLMPRSTUX';
-  if (!validFirstLetters.includes(deaNumber[0].toUpperCase())) {
+  const firstChar = deaNumber.charAt(0);
+  if (!firstChar || !validFirstLetters.includes(firstChar.toUpperCase())) {
     return false;
   }
 
   // Checksum validation
   const digits = deaNumber.slice(2).split('').map(Number);
 
+  // Ensure all required digits exist (the regex already validates 7 digits, but TS needs assurance)
+  const d0 = digits[0] ?? 0;
+  const d1 = digits[1] ?? 0;
+  const d2 = digits[2] ?? 0;
+  const d3 = digits[3] ?? 0;
+  const d4 = digits[4] ?? 0;
+  const d5 = digits[5] ?? 0;
+  const d6 = digits[6] ?? 0;
+
   // Sum of 1st, 3rd, 5th digits
-  const oddSum = digits[0] + digits[2] + digits[4];
+  const oddSum = d0 + d2 + d4;
 
   // Sum of 2nd, 4th, 6th digits * 2
-  const evenSum = (digits[1] + digits[3] + digits[5]) * 2;
+  const evenSum = (d1 + d3 + d5) * 2;
 
   // Last digit of total should equal check digit
   const checkDigit = (oddSum + evenSum) % 10;
 
-  return checkDigit === digits[6];
+  return checkDigit === d6;
 }
 
 /**
@@ -376,14 +386,21 @@ export function isValidDEANumber(deaNumber: string): boolean {
  */
 export function generateTestDEANumber(practitionerType: 'A' | 'B' | 'F' | 'M' = 'A', lastName: string = 'Smith'): string {
   const firstLetter = practitionerType;
-  const secondLetter = lastName[0].toUpperCase();
+  const secondLetter = lastName.charAt(0).toUpperCase() || 'S';
 
   // Generate random 6 digits
   const digits = Array.from({ length: 6 }, () => Math.floor(Math.random() * 10));
 
-  // Calculate check digit
-  const oddSum = digits[0] + digits[2] + digits[4];
-  const evenSum = (digits[1] + digits[3] + digits[5]) * 2;
+  // Calculate check digit - use nullish coalescing for TypeScript strict mode
+  const d0 = digits[0] ?? 0;
+  const d1 = digits[1] ?? 0;
+  const d2 = digits[2] ?? 0;
+  const d3 = digits[3] ?? 0;
+  const d4 = digits[4] ?? 0;
+  const d5 = digits[5] ?? 0;
+
+  const oddSum = d0 + d2 + d4;
+  const evenSum = (d1 + d3 + d5) * 2;
   const checkDigit = (oddSum + evenSum) % 10;
 
   return `${firstLetter}${secondLetter}${digits.join('')}${checkDigit}`;

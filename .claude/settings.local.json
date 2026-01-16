@@ -52,7 +52,9 @@
       "WebSearch",
       "Bash(npx prisma@5.9.0 generate:*)",
       "Bash(cmd /c \"pnpm test\")",
-      "Bash(cmd /c \"pnpm install\")"
+      "Bash(cmd /c \"pnpm install\")",
+      "Bash(npx pnpm build)",
+      "Bash(pnpm --filter @xoai/medscab type-check:*)"
     ]
   }
 }

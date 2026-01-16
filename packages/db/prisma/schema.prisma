@@ -50,6 +50,7 @@ model User {
   sessions      Session[]
   patients      Patient[]
   auditLogs     AuditLog[]
+  pharmacyStaff PharmacyStaff?
 
   @@index([username])
   @@index([email])
@@ -118,6 +119,10 @@ model Patient {
   insuranceProvider     String?
   insurancePolicyNumber String?
 
+  // Medical Information
+  allergies             String?   @db.Text  // Comma-separated list of allergies
+  medicalConditions     String?   @db.Text  // Comma-separated list of conditions
+
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
   createdBy       String?
@@ -127,6 +132,15 @@ model Patient {
   fhirResources   FhirResource[]
   observations    Observation[]
   medications     Medication[]
+  conditions      Condition[]
+
+  // Pharmacy Relations
+  prescriptionIntakes   PrescriptionIntake[]
+  pdmpQueries           PDMPQuery[]
+  signatureRecords      SignatureRecord[]
+  immunizationRecords   ImmunizationRecord[]
+  willCallBins          WillCallBin[]
+  prescriptionTransfers PrescriptionTransfer[]
 
   @@index([mrn])
   @@index([lastName, firstName])
@@ -241,6 +255,40 @@ enum MedicationStatus {
   ON_HOLD
 }
 
+// Patient Conditions (FHIR Condition Resource)
+model Condition {
+  id              String    @id @default(cuid())
+  patientId       String
+  encounterId     String?
+  code            String?   // SNOMED CT or ICD-10 code
+  codeSystem      String?   // e.g., "SNOMED CT", "ICD-10"
+  name            String    // Condition/diagnosis name
+  status          ConditionStatus @default(ACTIVE)
+  severity        String?   // mild, moderate, severe
+  onsetDate       DateTime?
+  abatementDate   DateTime?
+  recordedDate    DateTime  @default(now())
+  notes           String?   @db.Text
+
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  patient         Patient   @relation(fields: [patientId], references: [id])
+
+  @@index([patientId])
+  @@index([code])
+  @@index([status])
+}
+
+enum ConditionStatus {
+  ACTIVE
+  RECURRENCE
+  RELAPSE
+  INACTIVE
+  REMISSION
+  RESOLVED
+}
+
 // FHIR Resource Storage
 model FhirResource {
   id              String    @id @default(cuid())
@@ -303,4 +351,652 @@ enum AuditAction {
   PHI_UPDATE
   PHI_DELETE
   PHI_EXPORT
+  // Pharmacy audit actions
+  PRESCRIPTION_INTAKE
+  PRESCRIPTION_FILL
+  PRESCRIPTION_VERIFY
+  PRESCRIPTION_DISPENSE
+  CONTROLLED_SUBSTANCE_DISPENSE
+  PDMP_QUERY
+  SIGNATURE_CAPTURE
+  IMMUNIZATION_ADMIN
+}
+
+// ============================================================================
+// PHARMACY MANAGEMENT MODELS (MedsCab)
+// ============================================================================
+
+// Pharmacy Staff with Role-Based Access Control
+model PharmacyStaff {
+  id                  String    @id @default(cuid())
+  userId              String    @unique
+  role                PharmacyRole
+  permissionLevel     Int       @default(10)  // 0 = highest (master), 10 = lowest (cashier)
+
+  // Professional Credentials
+  licenseNumber       String?
+  licenseState        String?
+  licenseExpiration   DateTime?
+  deaNumber           String?
+  deaSuffix           String?   // For mid-level practitioners
+  npiNumber           String?
+
+  // Certifications
+  immunizationCertified       Boolean   @default(false)
+  immunizationCertExpiration  DateTime?
+  controlledSubstanceCertified Boolean  @default(false)
+  mtmCertified                Boolean   @default(false)
+  compoundingCertified        Boolean   @default(false)
+
+  // Supervision (for techs and interns)
+  supervisorId        String?
+  canSupervise        Boolean   @default(false)
+  maxTechsSupervised  Int       @default(0)
+
+  // Work Schedule
+  schedulePattern     String?   // JSON string of schedule
+  hireDate            DateTime?
+  terminationDate     DateTime?
+
+  isActive            Boolean   @default(true)
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  user                User      @relation(fields: [userId], references: [id])
+  supervisor          PharmacyStaff? @relation("Supervision", fields: [supervisorId], references: [id])
+  supervisees         PharmacyStaff[] @relation("Supervision")
+  intakeRecords       PrescriptionIntake[] @relation("IntakeBy")
+  verifiedIntakes     PrescriptionIntake[] @relation("VerifiedBy")
+  pdmpQueries         PDMPQuery[]
+  signaturesWitnessed SignatureRecord[]
+  immunizationsGiven  ImmunizationRecord[]
+
+  @@index([userId])
+  @@index([role])
+  @@index([supervisorId])
+}
+
+enum PharmacyRole {
+  MASTER_USER           // Level 0 - Full system access
+  SYSTEM_ADMIN          // Level 1 - IT administration
+  COMPUTER_TECH         // Level 2 - Technical support
+  PHARMACY_MANAGER      // Level 3 - Store operations
+  PHARMACIST            // Level 4 - Licensed pharmacist (PIC)
+  STAFF_PHARMACIST      // Level 5 - Staff pharmacist
+  PHARMACY_INTERN       // Level 6 - Pharmacy intern
+  PHARMACY_TECH_LEAD    // Level 7 - Senior tech
+  PHARMACY_TECH         // Level 8 - Certified tech
+  TECH_IN_TRAINING      // Level 9 - Tech trainee
+  CASHIER               // Level 10 - Front register
+  DELIVERY_DRIVER       // Level 10 - Delivery only
+}
+
+// Prescription Intake Records
+model PrescriptionIntake {
+  id                  String    @id @default(cuid())
+
+  // Source Information
+  channel             IntakeChannel
+  sourceIdentifier    String?   // Fax number, e-Rx ID, transfer pharmacy
+
+  // Patient Information
+  patientId           String?
+  patientFirstName    String
+  patientLastName     String
+  patientDOB          DateTime
+  patientPhone        String?
+  patientAddress      String?   @db.Text
+
+  // Prescriber Information
+  prescriberName      String
+  prescriberNPI       String?
+  prescriberDEA       String?
+  prescriberPhone     String?
+  prescriberFax       String?
+  prescriberAddress   String?   @db.Text
+
+  // Prescription Details
+  drugName            String
+  drugNDC             String?
+  quantity            Int
+  daysSupply          Int?
+  refillsAuthorized   Int       @default(0)
+  directions          String    @db.Text
+  dawCode             Int       @default(0)  // Dispense As Written
+
+  // Controlled Substance Info
+  isControlled        Boolean   @default(false)
+  schedule            Int?      // DEA schedule 2-5
+  epcsSignature       String?   @db.Text  // Electronic prescribing signature
+
+  // AI/OCR Processing
+  ocrConfidence       Float?
+  aiInterpretation    Json?     // AI-processed data
+  requiresReview      Boolean   @default(false)
+
+  // Status
+  status              IntakeStatus @default(PENDING)
+  rejectionReason     String?
+
+  // Staff
+  intakeById          String?
+  verifiedById        String?
+  intakeAt            DateTime  @default(now())
+  verifiedAt          DateTime?
+
+  // Original Document
+  originalDocument    String?   @db.Text  // Base64 or file path
+
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  patient             Patient?  @relation(fields: [patientId], references: [id])
+  intakeBy            PharmacyStaff? @relation("IntakeBy", fields: [intakeById], references: [id])
+  verifiedBy          PharmacyStaff? @relation("VerifiedBy", fields: [verifiedById], references: [id])
+
+  @@index([patientId])
+  @@index([status])
+  @@index([channel])
+  @@index([intakeAt])
+}
+
+enum IntakeChannel {
+  E_PRESCRIBE         // Surescripts
+  FAX                 // eFax/traditional fax
+  PHONE               // Phone-in
+  HARD_COPY           // Written prescription
+  TRANSFER_IN         // Transfer from another pharmacy
+  REFILL_REQUEST      // Patient refill request
+  EMR_INTEGRATION     // Direct EMR integration
+}
+
+enum IntakeStatus {
+  PENDING             // Awaiting processing
+  IN_REVIEW           // Under pharmacist review
+  CLARIFICATION_NEEDED // Needs prescriber contact
+  APPROVED            // Ready for filling
+  REJECTED            // Rejected/invalid
+  TRANSFERRED         // Transferred to workflow
+}
+
+// PDMP Query Records
+model PDMPQuery {
+  id                  String    @id @default(cuid())
+  patientId           String
+
+  // Query Details
+  queryType           PDMPQueryType
+  statesQueried       String    // Comma-separated state codes
+
+  // Results
+  querySuccessful     Boolean
+  prescriptionsFound  Int       @default(0)
+  results             Json?     // Full PDMP results
+
+  // Risk Analysis
+  riskScore           Int?      // 0-100
+  mmeDaily            Float?    // Morphine Milligram Equivalent
+  alerts              Json?     // Array of alerts
+
+  // Flags
+  hasMultiplePrescriberAlert  Boolean @default(false)
+  hasMultiplePharmacyAlert    Boolean @default(false)
+  hasOverlappingRxAlert       Boolean @default(false)
+  hasHighMMEAlert             Boolean @default(false)
+  hasEarlyRefillAlert         Boolean @default(false)
+
+  // Staff
+  queriedById         String
+  queriedAt           DateTime  @default(now())
+
+  // Response
+  responseTime        Int?      // Milliseconds
+  errorMessage        String?
+
+  patient             Patient   @relation(fields: [patientId], references: [id])
+  queriedBy           PharmacyStaff @relation(fields: [queriedById], references: [id])
+
+  @@index([patientId])
+  @@index([queriedAt])
+  @@index([riskScore])
+}
+
+enum PDMPQueryType {
+  STANDARD            // Normal query
+  EMERGENCY           // Emergency dispense
+  OPIOID_NAIVE        // First-time opioid patient
+  HIGH_RISK           // Known high-risk patient
+  AUDIT               // Audit/compliance check
+}
+
+// Signature Records (HIPAA/21 CFR Part 11 Compliant)
+model SignatureRecord {
+  id                  String    @id @default(cuid())
+  patientId           String
+
+  // Signature Data
+  signatureType       SignatureType
+  signatureData       String    @db.LongText  // Base64 encoded image
+  signatureHash       String    // SHA-256 hash for integrity
+
+  // Capture Details
+  captureDevice       String?   // Device type (Topaz, ePadLink, etc.)
+  captureTimestamp    DateTime
+  captureLocation     String?   // Terminal/station ID
+
+  // Verification
+  idVerificationType  IDVerificationType?
+  idVerificationData  Json?     // ID details (masked)
+
+  // Consent/Purpose
+  purpose             String    // HIPAA consent, pickup, counseling waiver
+  documentSigned      String?   // Reference to document
+
+  // Witnessing
+  witnessedById       String?
+  witnessTimestamp    DateTime?
+
+  // Validity
+  validUntil          DateTime  // 6 months per HIPAA
+  isRevoked           Boolean   @default(false)
+  revokedAt           DateTime?
+  revokedReason       String?
+
+  createdAt           DateTime  @default(now())
+
+  patient             Patient   @relation(fields: [patientId], references: [id])
+  witnessedBy         PharmacyStaff? @relation(fields: [witnessedById], references: [id])
+
+  @@index([patientId])
+  @@index([signatureType])
+  @@index([validUntil])
+}
+
+enum SignatureType {
+  HIPAA_CONSENT
+  PRESCRIPTION_PICKUP
+  COUNSELING_ACCEPTANCE
+  COUNSELING_WAIVER
+  CONTROLLED_SUBSTANCE
+  ID_VERIFICATION
+  DELIVERY_RECEIPT
+  IMMUNIZATION_CONSENT
+}
+
+enum IDVerificationType {
+  DRIVERS_LICENSE
+  STATE_ID
+  PASSPORT
+  MILITARY_ID
+  TRIBAL_ID
+  PATIENT_PHOTO
+  BIOMETRIC
+}
+
+// Vaccine Inventory
+model VaccineInventory {
+  id                  String    @id @default(cuid())
+
+  // Vaccine Identification
+  cvxCode             String    // CDC CVX code
+  mvxCode             String?   // CDC MVX (manufacturer) code
+  ndcCode             String
+  vaccineName         String
+  manufacturer        String
+
+  // Lot Information
+  lotNumber           String
+  expirationDate      DateTime
+
+  // Quantity
+  quantityOnHand      Int
+  quantityAllocated   Int       @default(0)  // Reserved for appointments
+  dosesPerVial        Int       @default(1)
+
+  // Storage
+  storageUnitId       String?
+  storageRequirement  StorageRequirement
+
+  // VFC (Vaccines for Children)
+  isVfcStock          Boolean   @default(false)
+  vfcPinNumber        String?
+
+  // Funding Source
+  fundingSource       VaccineFundingSource @default(PRIVATE)
+
+  // Tracking
+  receivedDate        DateTime
+  receivedFrom        String?   // Distributor/CDC
+  poNumber            String?
+  unitCost            Float?
+
+  isActive            Boolean   @default(true)
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  storageUnit         VaccineStorageUnit? @relation(fields: [storageUnitId], references: [id])
+  immunizations       ImmunizationRecord[]
+
+  @@index([cvxCode])
+  @@index([lotNumber])
+  @@index([expirationDate])
+  @@index([storageUnitId])
+}
+
+enum StorageRequirement {
+  REFRIGERATED        // 2-8°C (35-46°F)
+  FROZEN              // -50 to -15°C (-58 to 5°F)
+  ULTRA_COLD          // -90 to -60°C (-130 to -76°F)
+  ROOM_TEMP           // 20-25°C (68-77°F)
+}
+
+enum VaccineFundingSource {
+  PRIVATE             // Private insurance/patient pay
+  VFC                 // Vaccines for Children
+  STATE_SUPPLIED      // State program
+  FEDERAL_317         // Section 317 federal program
+  OTHER_PUBLIC        // Other public funding
+}
+
+// Immunization Administration Records
+model ImmunizationRecord {
+  id                  String    @id @default(cuid())
+  patientId           String
+  vaccineInventoryId  String
+
+  // Administration Details
+  administrationDate  DateTime
+  administrationSite  String    // Left deltoid, right thigh, etc.
+  administrationRoute String    // IM, SC, ID, PO
+  doseNumber          Int?      // Dose in series
+
+  // VIS (Vaccine Information Statement)
+  visPublicationDate  DateTime?
+  visGivenDate        DateTime
+
+  // Administered By
+  administeredById    String
+  supervisorId        String?   // If administered by intern/tech
+
+  // Standing Order
+  standingOrderId     String?
+  standingOrderUsed   Boolean   @default(false)
+
+  // Screening
+  screeningCompleted  Boolean   @default(true)
+  screeningQuestions  Json?     // Screening responses
+
+  // Adverse Events
+  hasAdverseEvent     Boolean   @default(false)
+  adverseEventDetails String?   @db.Text
+  vaersReported       Boolean   @default(false)
+  vaersReportId       String?
+
+  // IIS Reporting
+  iisReported         Boolean   @default(false)
+  iisReportedAt       DateTime?
+  iisMessageId        String?
+  iisAckStatus        String?
+
+  // Billing
+  cptCode             String?
+  billedAmount        Float?
+
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  patient             Patient   @relation(fields: [patientId], references: [id])
+  vaccineInventory    VaccineInventory @relation(fields: [vaccineInventoryId], references: [id])
+  administeredBy      PharmacyStaff @relation(fields: [administeredById], references: [id])
+  standingOrder       StandingOrder? @relation(fields: [standingOrderId], references: [id])
+
+  @@index([patientId])
+  @@index([administrationDate])
+  @@index([vaccineInventoryId])
+  @@index([administeredById])
+}
+
+// Standing Orders for Immunizations
+model StandingOrder {
+  id                  String    @id @default(cuid())
+
+  // Order Details
+  name                String
+  vaccineTypes        String    // Comma-separated CVX codes
+  description         String    @db.Text
+
+  // Protocol
+  protocolUrl         String?   // Link to protocol document
+  protocolVersion     String?
+
+  // Authorizing Prescriber
+  prescriberName      String
+  prescriberNPI       String
+  prescriberLicense   String
+
+  // Eligibility Criteria
+  minAge              Int?      // Minimum age in months
+  maxAge              Int?      // Maximum age in months
+  genderRestriction   Gender?
+  conditions          String?   @db.Text  // Required/excluded conditions
+
+  // Validity
+  effectiveDate       DateTime
+  expirationDate      DateTime
+
+  // State/Jurisdiction
+  stateCode           String    // Two-letter state code
+
+  isActive            Boolean   @default(true)
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  immunizations       ImmunizationRecord[]
+
+  @@index([stateCode])
+  @@index([effectiveDate])
+  @@index([expirationDate])
+}
+
+// Vaccine Storage Unit (Temperature Monitoring)
+model VaccineStorageUnit {
+  id                  String    @id @default(cuid())
+
+  // Unit Details
+  name                String
+  unitType            StorageUnitType
+  location            String?
+  serialNumber        String?
+
+  // Temperature Settings
+  storageRequirement  StorageRequirement
+  minTempCelsius      Float
+  maxTempCelsius      Float
+  currentTempCelsius  Float?
+  lastTempReadingAt   DateTime?
+
+  // Monitoring
+  monitoringDeviceId  String?
+  monitoringProvider  String?   // Temperature monitoring service
+  alertsEnabled       Boolean   @default(true)
+  alertEmail          String?
+  alertPhone          String?
+
+  // Excursion Tracking
+  hasActiveExcursion  Boolean   @default(false)
+  lastExcursionAt     DateTime?
+  excursionCount      Int       @default(0)
+
+  // Capacity
+  maxCapacityDoses    Int?
+  currentDoses        Int       @default(0)
+
+  isActive            Boolean   @default(true)
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  vaccines            VaccineInventory[]
+  temperatureLogs     TemperatureLog[]
+
+  @@index([storageRequirement])
+  @@index([hasActiveExcursion])
+}
+
+enum StorageUnitType {
+  REFRIGERATOR
+  FREEZER
+  ULTRA_COLD_FREEZER
+  COMBINATION_UNIT
+  PORTABLE_COOLER
+}
+
+// Temperature Log for CDC Compliance
+model TemperatureLog {
+  id                  String    @id @default(cuid())
+  storageUnitId       String
+
+  // Reading
+  temperatureCelsius  Float
+  recordedAt          DateTime
+  recordedBy          String?   // Staff ID or "AUTOMATED"
+
+  // Status
+  isWithinRange       Boolean
+  isExcursion         Boolean   @default(false)
+  excursionMinutes    Int?
+
+  // Actions Taken (if excursion)
+  actionsTaken        String?   @db.Text
+
+  createdAt           DateTime  @default(now())
+
+  storageUnit         VaccineStorageUnit @relation(fields: [storageUnitId], references: [id])
+
+  @@index([storageUnitId])
+  @@index([recordedAt])
+  @@index([isExcursion])
+}
+
+// Will-Call Bin Management
+model WillCallBin {
+  id                  String    @id @default(cuid())
+
+  // Bin Location
+  binNumber           String    @unique
+  location            String?   // Aisle, shelf, etc.
+
+  // Patient Assignment
+  patientId           String?
+  patientLastName     String?
+
+  // Contents
+  prescriptionCount   Int       @default(0)
+
+  // Timing
+  firstFilledAt       DateTime?
+  lastActivityAt      DateTime?
+
+  // Auto-Reverse Settings
+  daysUntilReverse    Int       @default(10)
+  scheduledReverseAt  DateTime?
+
+  // Status
+  status              WillCallStatus @default(EMPTY)
+
+  // Notifications
+  notificationsSent   Int       @default(0)
+  lastNotificationAt  DateTime?
+
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  patient             Patient?  @relation(fields: [patientId], references: [id])
+
+  @@index([patientId])
+  @@index([binNumber])
+  @@index([status])
+  @@index([scheduledReverseAt])
+}
+
+enum WillCallStatus {
+  EMPTY
+  ASSIGNED
+  READY_FOR_PICKUP
+  PARTIAL_PICKUP
+  AWAITING_PAYMENT
+  SCHEDULED_REVERSE
+}
+
+// Prescription Transfer Records
+model PrescriptionTransfer {
+  id                  String    @id @default(cuid())
+
+  // Original Prescription
+  originalRxNumber    String
+  medicationName      String
+  medicationNDC       String?
+  quantity            Int
+  refillsRemaining    Int
+
+  // Patient
+  patientId           String
+  patientFirstName    String
+  patientLastName     String
+  patientDOB          DateTime
+
+  // Transfer Direction
+  direction           TransferDirection
+
+  // Other Pharmacy
+  otherPharmacyName   String
+  otherPharmacyPhone  String
+  otherPharmacyNPI    String?
+  otherPharmacyAddress String? @db.Text
+
+  // Original Prescriber
+  prescriberName      String
+  prescriberNPI       String?
+  prescriberDEA       String?
+  prescriberPhone     String?
+
+  // Transfer Staff
+  ourPharmacistId     String
+  ourPharmacistName   String
+  theirPharmacistName String?
+
+  // Transfer Details
+  transferredAt       DateTime
+  originalWrittenDate DateTime
+  originalFillDate    DateTime?
+  lastFillDate        DateTime?
+  totalFillsUsed      Int       @default(0)
+
+  // Controlled Substance
+  isControlled        Boolean   @default(false)
+  schedule            Int?
+
+  // Status
+  status              TransferStatus @default(COMPLETED)
+  notes               String?   @db.Text
+
+  createdAt           DateTime  @default(now())
+
+  patient             Patient   @relation(fields: [patientId], references: [id])
+
+  @@index([patientId])
+  @@index([direction])
+  @@index([transferredAt])
+}
+
+enum TransferDirection {
+  TRANSFER_IN
+  TRANSFER_OUT
+}
+
+enum TransferStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+  REJECTED
 }

@@ -188,9 +188,13 @@ function parseDrugName(name: string): { strength: string; dosageForm: string } {
   const strengthMatch = name.match(/(\d+\.?\d*)\s*(MG|MCG|G|ML|%|UNIT|IU)/i);
   const formMatch = name.match(/(tablet|capsule|solution|injection|cream|ointment|suspension|syrup|patch|inhaler|spray)/i);
 
+  const strengthValue = strengthMatch?.[1];
+  const strengthUnit = strengthMatch?.[2];
+  const formValue = formMatch?.[1];
+
   return {
-    strength: strengthMatch ? `${strengthMatch[1]} ${strengthMatch[2].toUpperCase()}` : '',
-    dosageForm: formMatch ? formMatch[1].toLowerCase() : '',
+    strength: strengthValue && strengthUnit ? `${strengthValue} ${strengthUnit.toUpperCase()}` : '',
+    dosageForm: formValue ? formValue.toLowerCase() : '',
   };
 }
 
@@ -199,7 +203,8 @@ function parseDrugName(name: string): { strength: string; dosageForm: string } {
  */
 function extractUnit(strength: string): string {
   const match = strength.match(/(MG|MCG|G|ML|%|UNIT|IU)/i);
-  return match ? match[1].toUpperCase() : 'MG';
+  const unit = match?.[1];
+  return unit ? unit.toUpperCase() : 'MG';
 }
 
 /**
