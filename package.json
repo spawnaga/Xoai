@@ -1,0 +1,49 @@
+{
+  "name": "xoai",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Xoai - Unified Healthcare Platform",
+  "scripts": {
+    "dev": "turbo dev",
+    "build": "turbo build",
+    "lint": "turbo lint",
+    "type-check": "turbo type-check",
+    "clean": "turbo clean && rm -rf node_modules",
+    "db:generate": "turbo db:generate",
+    "db:push": "turbo db:push",
+    "db:studio": "pnpm --filter @xoai/db studio",
+    "db:setup": "docker-compose up -d && pnpm db:generate && pnpm db:push",
+    "db:reset": "docker-compose down -v && docker-compose up -d && pnpm db:push",
+    "format": "prettier --write \"**/*.{ts,tsx,md,json}\"",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "test:ui": "vitest --ui",
+    "migrate:connect": "tsx packages/migration/src/connect.ts",
+    "migrate:export": "echo 'Export handled in migrate:all'",
+    "migrate:transform": "echo 'Transform handled in migrate:all'",
+    "migrate:load": "tsx packages/migration/src/index.ts",
+    "migrate:validate": "tsx scripts/validate-migration.ts",
+    "migrate:all": "tsx packages/migration/src/index.ts",
+    "migrate:users": "tsx scripts/migrate-users.ts",
+    "migrate:patients": "tsx scripts/migrate-patients.ts",
+    "migrate:clinical": "tsx scripts/migrate-clinical.ts",
+    "migrate:prescriptions": "tsx scripts/migrate-prescriptions.ts",
+    "migrate:audit": "tsx scripts/migrate-audit.ts"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.0",
+    "mongodb": "^6.3.0",
+    "tsx": "^4.7.0",
+    "@vitest/coverage-v8": "^1.2.0",
+    "@vitest/ui": "^1.2.0",
+    "prettier": "^3.1.0",
+    "turbo": "^2.0.0",
+    "typescript": "^5.3.0",
+    "vitest": "^1.2.0"
+  },
+  "packageManager": "pnpm@8.15.0",
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

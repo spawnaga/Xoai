@@ -1,0 +1,26 @@
+{
+  "name": "@xoai/migration",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "connect": "tsx src/connect.ts",
+    "export": "tsx src/export.ts",
+    "transform": "tsx src/transform.ts",
+    "load": "tsx src/load.ts",
+    "validate": "tsx src/validate.ts",
+    "migrate:all": "tsx src/index.ts"
+  },
+  "dependencies": {
+    "mongodb": "^6.3.0",
+    "@prisma/client": "^5.22.0",
+    "@xoai/db": "workspace:*"
+  },
+  "devDependencies": {
+    "tsx": "^4.7.0",
+    "typescript": "^5.3.3"
+  }
+}

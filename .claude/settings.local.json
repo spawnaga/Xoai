@@ -1,0 +1,40 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(tree:*)",
+      "Bash(wc:*)",
+      "Bash(npm run test:*)",
+      "Bash(pnpm test:*)",
+      "Bash(npm install)",
+      "Bash(npx vitest run)",
+      "Bash(npx vitest:*)",
+      "Bash(pnpm install:*)",
+      "Bash(npm:*)",
+      "Bash(npx pnpm install)",
+      "Bash(npx pnpm migrate:connect)",
+      "Bash(MONGO_URI=\"mongodb://localhost:27017/asclepius\" npx tsx:*)",
+      "Bash(npx tsx:*)",
+      "Bash(MONGO_URI=\"mongodb://localhost:27017/Asclepius\" npx tsx:*)",
+      "Bash(npx pnpm db:generate)",
+      "Bash(npx prisma:*)",
+      "Bash(DATABASE_URL=\"mysql://xoai_user:xoai_password@localhost:3306/xoai\" MONGO_URI=\"mongodb://localhost:27017/Asclepius\" npx tsx:*)",
+      "Bash(docker-compose up:*)",
+      "Bash(DATABASE_URL=\"mysql://xoai_user:xoai_password@localhost:3306/xoai\" npx prisma db push:*)",
+      "Bash(npx pnpm dev)",
+      "Bash(pnpm type-check:*)",
+      "Bash(npx tsc:*)",
+      "Bash(npx turbo type-check)",
+      "Bash(head:*)",
+      "Bash(xxd:*)",
+      "Bash(while read f)",
+      "Bash(do if head -c 10 \"$f\")",
+      "Bash(then echo \"CORRUPTED: $f\")",
+      "Bash(fi)",
+      "Bash(done)",
+      "Bash(timeout 20 npx next dev:*)",
+      "Bash(git init:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)"
+    ]
+  }
+}

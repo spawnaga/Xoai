@@ -1,0 +1,263 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+// User & Authentication
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  name          String?
+  emailVerified DateTime?
+  image         String?
+  role          UserRole  @default(USER)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  accounts      Account[]
+  sessions      Session[]
+  patients      Patient[]
+  auditLogs     AuditLog[]
+
+  @@index([email])
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+enum UserRole {
+  USER
+  ADMIN
+  DOCTOR
+  NURSE
+  PATIENT
+}
+
+// Healthcare Models
+model Patient {
+  id              String    @id @default(cuid())
+  mrn             String    @unique // Medical Record Number
+  firstName       String
+  lastName        String
+  dateOfBirth     DateTime
+  gender          Gender
+  email           String?
+  phone           String?
+  address         String?   @db.Text
+  city            String?
+  state           String?
+  zipCode         String?
+  country         String?
+
+  // Emergency Contact
+  emergencyContactName  String?
+  emergencyContactPhone String?
+
+  // Insurance
+  insuranceProvider     String?
+  insurancePolicyNumber String?
+
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  createdBy       String?
+
+  user            User?     @relation(fields: [createdBy], references: [id])
+  encounters      Encounter[]
+  fhirResources   FhirResource[]
+  observations    Observation[]
+  medications     Medication[]
+
+  @@index([mrn])
+  @@index([lastName, firstName])
+  @@index([createdBy])
+}
+
+enum Gender {
+  MALE
+  FEMALE
+  OTHER
+  UNKNOWN
+}
+
+model Encounter {
+  id              String    @id @default(cuid())
+  patientId       String
+  type            EncounterType
+  status          EncounterStatus
+  startDate       DateTime
+  endDate         DateTime?
+  reason          String?   @db.Text
+  notes           String?   @db.Text
+  diagnosis       String?   @db.Text
+
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  patient         Patient   @relation(fields: [patientId], references: [id])
+  observations    Observation[]
+  medications     Medication[]
+
+  @@index([patientId])
+  @@index([startDate])
+}
+
+enum EncounterType {
+  OUTPATIENT
+  INPATIENT
+  EMERGENCY
+  TELEHEALTH
+  HOME_HEALTH
+}
+
+enum EncounterStatus {
+  PLANNED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+model Observation {
+  id              String    @id @default(cuid())
+  patientId       String
+  encounterId     String?
+  code            String    // LOINC code
+  codeSystem      String    @default("http://loinc.org")
+  display         String
+  value           String?
+  unit            String?
+  interpretation  String?
+  status          ObservationStatus @default(FINAL)
+  effectiveDate   DateTime
+
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  patient         Patient   @relation(fields: [patientId], references: [id])
+  encounter       Encounter? @relation(fields: [encounterId], references: [id])
+
+  @@index([patientId])
+  @@index([encounterId])
+  @@index([code])
+}
+
+enum ObservationStatus {
+  REGISTERED
+  PRELIMINARY
+  FINAL
+  AMENDED
+  CANCELLED
+}
+
+model Medication {
+  id              String    @id @default(cuid())
+  patientId       String
+  encounterId     String?
+  rxnormCode      String?   // RxNorm code
+  ndcCode         String?   // NDC code
+  name            String
+  dosage          String?
+  frequency       String?
+  route           String?
+  status          MedicationStatus @default(ACTIVE)
+  startDate       DateTime
+  endDate         DateTime?
+  prescribedBy    String?
+
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  patient         Patient   @relation(fields: [patientId], references: [id])
+  encounter       Encounter? @relation(fields: [encounterId], references: [id])
+
+  @@index([patientId])
+  @@index([rxnormCode])
+}
+
+enum MedicationStatus {
+  ACTIVE
+  COMPLETED
+  STOPPED
+  ON_HOLD
+}
+
+// FHIR Resource Storage
+model FhirResource {
+  id              String    @id @default(cuid())
+  resourceType    String
+  resourceId      String
+  patientId       String?
+  data            Json
+  version         Int       @default(1)
+
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  patient         Patient?  @relation(fields: [patientId], references: [id])
+
+  @@unique([resourceType, resourceId])
+  @@index([patientId])
+  @@index([resourceType])
+}
+
+// Audit Logging for HIPAA Compliance
+model AuditLog {
+  id              String    @id @default(cuid())
+  userId          String?
+  action          AuditAction
+  resourceType    String
+  resourceId      String?
+  details         Json?
+  ipAddress       String?
+  userAgent       String?
+
+  createdAt       DateTime  @default(now())
+
+  user            User?     @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([resourceType])
+  @@index([createdAt])
+}
+
+enum AuditAction {
+  CREATE
+  READ
+  UPDATE
+  DELETE
+  LOGIN
+  LOGOUT
+  EXPORT
+  PRINT
+}

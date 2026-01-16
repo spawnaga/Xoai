@@ -1,0 +1,11 @@
+{
+  "name": "@xoai/tailwind-config",
+  "version": "0.1.0",
+  "private": true,
+  "license": "MIT",
+  "files": ["tailwind.config.js"],
+  "dependencies": {
+    "tailwindcss": "^3.4.0",
+    "tailwindcss-animate": "^1.0.7"
+  }
+}
