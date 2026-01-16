@@ -69,3 +69,11 @@ export const clinicalProcedure = publicProcedure.use(
 export const doctorProcedure = publicProcedure.use(
   hasRole(['ADMIN', 'DOCTOR'])
 );
+
+export const pharmacistProcedure = publicProcedure.use(
+  hasRole(['ADMIN', 'PHARMACIST'])
+);
+
+export const nurseProcedure = publicProcedure.use(
+  hasRole(['ADMIN', 'DOCTOR', 'NURSE'])
+);

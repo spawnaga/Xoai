@@ -431,6 +431,16 @@ const CONTRAINDICATIONS: Record<string, Array<{ condition: string; severity: Int
 };
 
 /**
+ * Drug class mappings for contraindication lookup
+ */
+const DRUG_CLASS_MAPPINGS: Record<string, string[]> = {
+  nsaids: ['ibuprofen', 'naproxen', 'diclofenac', 'ketorolac', 'meloxicam', 'indomethacin', 'celecoxib', 'piroxicam'],
+  statins: ['atorvastatin', 'simvastatin', 'rosuvastatin', 'pravastatin', 'lovastatin', 'fluvastatin'],
+  opioids: ['hydrocodone', 'oxycodone', 'morphine', 'fentanyl', 'tramadol', 'codeine', 'methadone', 'hydromorphone'],
+  benzodiazepines: ['alprazolam', 'lorazepam', 'diazepam', 'clonazepam', 'temazepam', 'midazolam'],
+};
+
+/**
  * Check for contraindications based on patient conditions
  */
 export function checkContraindications(
@@ -440,9 +450,16 @@ export function checkContraindications(
   const normalizedDrug = normalizeDrugName(drugName);
   const contraindications: Contraindication[] = [];
 
-  // Find matching drug entry
+  // Find matching drug entry (direct match or via class mapping)
   for (const [drug, conditions] of Object.entries(CONTRAINDICATIONS)) {
-    if (!normalizedDrug.includes(drug) && !drug.includes(normalizedDrug)) continue;
+    // Direct match
+    const directMatch = normalizedDrug.includes(drug) || drug.includes(normalizedDrug);
+
+    // Class mapping match (e.g., ibuprofen -> nsaids)
+    const classMapping = DRUG_CLASS_MAPPINGS[drug];
+    const classMatch = classMapping?.some(d => normalizedDrug.includes(d) || d.includes(normalizedDrug));
+
+    if (!directMatch && !classMatch) continue;
 
     for (const conditionEntry of conditions) {
       // Check if patient has this condition

@@ -5,6 +5,7 @@ import { encounterRouter } from './routers/encounter';
 import { observationRouter } from './routers/observation';
 import { medicationRouter } from './routers/medication';
 import { fhirRouter } from './routers/fhir';
+import { prescriptionRouter } from './routers/prescription';
 
 /**
  * Main application router
@@ -15,6 +16,7 @@ export const appRouter = router({
   encounter: encounterRouter,
   observation: observationRouter,
   medication: medicationRouter,
+  prescription: prescriptionRouter,
   fhir: fhirRouter,
 });
 

@@ -29,6 +29,7 @@ export default defineConfig({
       '@xoai/healthcare-cda': path.resolve(__dirname, './packages/healthcare/cda/src'),
       '@xoai/healthcare-terminology': path.resolve(__dirname, './packages/healthcare/terminology/src'),
       '@xoai/healthcare-compliance': path.resolve(__dirname, './packages/healthcare/compliance/src'),
+      '@xoai/medscab': path.resolve(__dirname, './packages/medscab/src'),
       '@xoai/db': path.resolve(__dirname, './packages/db/src'),
       '@xoai/api': path.resolve(__dirname, './packages/api/src'),
       '@xoai/auth': path.resolve(__dirname, './packages/auth/src'),

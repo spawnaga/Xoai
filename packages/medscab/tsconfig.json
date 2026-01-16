@@ -1,9 +1,11 @@
 {
-  "extends": "@xoai/typescript-config/base.json",
+  "extends": "../../tooling/typescript/base.json",
   "compilerOptions": {
+    "module": "ESNext",
+    "moduleResolution": "bundler",
     "outDir": "./dist",
     "rootDir": "./src"
   },
-  "include": ["src/**/*"],
+  "include": ["src/**/*.ts"],
   "exclude": ["node_modules", "dist"]
 }

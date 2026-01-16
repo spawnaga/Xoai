@@ -13,6 +13,7 @@
     "@xoai/db": "workspace:*",
     "@xoai/healthcare-fhir": "workspace:*",
     "@xoai/healthcare-hl7": "workspace:*",
+    "@xoai/medscab": "workspace:*",
     "superjson": "^2.2.0",
     "zod": "^3.22.0"
   },

@@ -527,9 +527,12 @@ function checkMonitoringRequirements(drugName: string): DURAlert[] {
     carbamazepine: { parameters: ['CBC', 'LFTs', 'Drug levels'], frequency: 'Periodically' },
     valproic: { parameters: ['LFTs', 'Ammonia', 'Drug levels'], frequency: 'Periodically' },
     phenytoin: { parameters: ['Drug levels', 'CBC'], frequency: 'Periodically' },
-    statin: { parameters: ['LFTs', 'Lipid panel', 'CK if symptomatic'], frequency: 'Annually' },
-    ace: { parameters: ['Potassium', 'Renal function'], frequency: 'Within 2 weeks of initiation' },
+    atorvastatin: { parameters: ['LFTs', 'Lipid panel', 'CK if symptomatic'], frequency: 'Annually' },
+    simvastatin: { parameters: ['LFTs', 'Lipid panel', 'CK if symptomatic'], frequency: 'Annually' },
+    rosuvastatin: { parameters: ['LFTs', 'Lipid panel', 'CK if symptomatic'], frequency: 'Annually' },
     lisinopril: { parameters: ['Potassium', 'Renal function'], frequency: 'Within 2 weeks of initiation' },
+    enalapril: { parameters: ['Potassium', 'Renal function'], frequency: 'Within 2 weeks of initiation' },
+    ramipril: { parameters: ['Potassium', 'Renal function'], frequency: 'Within 2 weeks of initiation' },
   };
 
   for (const [drug, monitoring] of Object.entries(monitoringRequirements)) {

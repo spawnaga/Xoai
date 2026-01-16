@@ -20,7 +20,7 @@
 | Phase 9 | SSR Migration & Security Hardening | 🔄 50% |
 | Phase 10 | C# Integration Layer | ⏳ Planned |
 
-**Tests:** 562 passing ✅
+**Tests:** 899 passing ✅
 
 ## Tech Stack
 
@@ -51,6 +51,13 @@ Xoai/
 │   ├── db/                     # Prisma database models
 │   ├── ui/                     # Shared UI component library
 │   ├── ai/                     # AI integrations
+│   ├── medscab/                # Pharmacy management system (266 tests)
+│   │   ├── claims/             # NCPDP claims processing (B1, B2, B3)
+│   │   ├── inventory/          # NDC-based inventory management
+│   │   ├── controlled-substances/ # DEA compliance, CSOS, ARCOS
+│   │   ├── workflow/           # Prescription queue management
+│   │   ├── ltc-facility/       # Long-term care & hospice
+│   │   └── fill/               # Prescription filling operations
 │   └── healthcare/             # Healthcare-specific packages
 │       ├── fhir/               # FHIR R4 converters & validators
 │       ├── google/             # Google Healthcare API
@@ -96,6 +103,76 @@ Start services: `docker-compose up -d`
 - AI-powered symptom analysis and drug interaction checking
 - Comprehensive audit logging
 - **Professional modern UI with gradients and animations**
+
+## MedsCab Pharmacy Package
+
+> **Package:** `packages/medscab` | **Tests:** 266 passing | **Status:** ✅ Complete
+
+### Modules Implemented
+
+| Module | Description | Key Features |
+|--------|-------------|--------------|
+| **Claims** | NCPDP insurance claims | B1/B2/B3 transactions, reject codes, eligibility checking, patient pay calculation |
+| **Inventory** | NDC-based inventory | NDC parsing (5-4-2 format), reorder management, expiration tracking, inventory valuation |
+| **Controlled Substances** | DEA compliance | DEA number validation, CSOS ordering, perpetual inventory, biennial inventory, theft/loss reporting |
+| **Workflow** | Prescription queue | State machine transitions, queue priorities, notifications, will-call management |
+| **LTC Facility** | Long-term care | Hospice comfort kits, MAR generation, delivery scheduling, emergency kit tracking |
+| **Fill** | Prescription filling | Fill validation, refill logic, DAW codes, auxiliary labels, pharmacist verification |
+
+### Key Types Exported
+
+```typescript
+// Claims
+InsuranceInfo, ClaimRequest, ClaimResponse, EligibilityResponse
+
+// Inventory
+InventoryItem, InventoryTransaction, ReorderItem, NDCComponents
+
+// Controlled Substances
+CSTransaction, TheftLossReport, VarianceResult, BiennialInventoryStatus
+
+// Workflow
+WorkflowItem, WorkflowState, QueueSummary, WorkflowNotification
+
+// LTC Facility
+FacilityResident, HospiceAdmission, DeliverySchedule, EmergencyKit, MARRecord
+
+// Fill
+Fill, FillValidation, AuxiliaryLabel, Prescription
+```
+
+### Usage Example
+
+```typescript
+import {
+  submitClaim,
+  normalizeNDC,
+  isValidDEANumber,
+  transitionState,
+  generateMAR,
+  createFill,
+} from '@xoai/medscab';
+
+// Submit insurance claim
+const response = await submitClaim(claimRequest);
+
+// Validate NDC format
+const ndc = normalizeNDC('12345-6789-01'); // Returns '12345678901'
+
+// Validate DEA number
+const valid = isValidDEANumber('AS1234563'); // Returns true/false
+
+// Transition prescription workflow state
+const result = transitionState(item, 'fill', 'verify', userId);
+
+// Generate MAR for LTC resident
+const mar = generateMAR(resident, medications, startDate, 7);
+
+// Create new fill record
+const fill = createFill(prescription, fillData);
+```
+
+---
 
 ## Source Project Details
 
