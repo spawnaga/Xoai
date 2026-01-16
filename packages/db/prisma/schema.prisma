@@ -10,11 +10,39 @@ datasource db {
 // User & Authentication
 model User {
   id            String    @id @default(cuid())
-  email         String    @unique
-  name          String?
+  username      String    @unique  // Login username (case-insensitive)
+  email         String?   // Optional, used for password recovery via Google
+  password      String    // Hashed with bcrypt (HIPAA compliant)
+  firstName     String?
+  lastName      String?
+  name          String?   // Display name
   emailVerified DateTime?
   image         String?
   role          UserRole  @default(USER)
+  isSuperuser   Boolean   @default(false)  // Full admin access
+  isActive      Boolean   @default(true)
+  lastLoginAt   DateTime?
+  failedLoginAttempts Int @default(0)
+  lockedUntil   DateTime?
+
+  // Professional Credentials (for healthcare providers)
+  isDoctor      Boolean   @default(false)
+  deaNumber     String?   // DEA registration number
+  npiNumber     String?   // National Provider Identifier
+  licenseNumber String?   // Medical license number
+  licenseType   String?   // MD, DO, NP, PA, etc.
+  licenseState  String?   // State of licensure
+  clinicName    String?
+
+  // Pharmacy roles
+  isPharmacist          Boolean @default(false)
+  isPharmacyTechnician  Boolean @default(false)
+
+  // AI settings
+  aiProvider    String?   // 'openai' or 'gemini'
+  openaiApiKey  String?
+  geminiApiKey  String?
+
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
@@ -23,6 +51,7 @@ model User {
   patients      Patient[]
   auditLogs     AuditLog[]
 
+  @@index([username])
   @@index([email])
 }
 
@@ -260,4 +289,11 @@ enum AuditAction {
   LOGOUT
   EXPORT
   PRINT
+  // Authentication audit actions
+  LOGIN_SUCCESS
+  LOGIN_FAILED
+  LOGIN_BLOCKED
+  REGISTER_SUCCESS
+  REGISTER_FAILED
+  REGISTER_ERROR
 }

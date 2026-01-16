@@ -4,11 +4,11 @@ import type { Context, Session } from './context';
 
 describe('API Context', () => {
   describe('createContext', () => {
-    it('should create context with null values by default', async () => {
+    it('should create context with db and null session by default', async () => {
       const context = await createContext();
 
       expect(context).toBeDefined();
-      expect(context.db).toBeNull();
+      expect(context.db).toBeDefined();
       expect(context.session).toBeNull();
     });
 

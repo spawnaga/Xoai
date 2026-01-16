@@ -37,7 +37,17 @@
       "Bash(git commit:*)",
       "Bash(gh repo create:*)",
       "Bash(where:*)",
-      "Bash(git config:*)"
+      "Bash(git config:*)",
+      "Bash(pnpm add:*)",
+      "Bash(ls:*)",
+      "Bash(export DATABASE_URL=\"mysql://xoai_user:xoai_password@localhost:3306/xoai\")",
+      "Bash(taskkill:*)",
+      "Bash(/c/Users/alial/AppData/Local/pnpm/.tools/pnpm/8.15.0/bin/pnpm.CMD test)",
+      "Bash(docker exec:*)",
+      "Bash(curl:*)",
+      "Bash(node:*)",
+      "Bash(/c/Users/alial/AppData/Local/pnpm/.tools/pnpm/8.15.0/bin/pnpm.CMD dev)",
+      "Bash(/c/Users/alial/AppData/Local/pnpm/.tools/pnpm/8.15.0/bin/pnpm.CMD run dev:*)"
     ]
   }
 }

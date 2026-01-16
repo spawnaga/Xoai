@@ -5,6 +5,7 @@
 
 import { MongoClient } from "mongodb";
 import { PrismaClient } from "@prisma/client";
+import { hash } from "bcryptjs";
 
 const MONGO_URI = process.env.MONGO_URI || "mongodb://localhost:27017/asclepius";
 const prisma = new PrismaClient();
@@ -67,14 +68,20 @@ async function migrateUsers(db: any, prisma: PrismaClient): Promise<MigrationRes
   const users = await db.collection("users").find({}).toArray();
   result.exported = users.length;
 
+  // Default password for migrated users (they will need to reset)
+  const defaultHashedPassword = await hash("MigratedUser#2024!", 12);
+
   for (const user of users) {
     try {
       const role = mapUserRole(user.user_type);
+      // Use existing hashed password if available, otherwise use default
+      const password = user.user_password || defaultHashedPassword;
       await prisma.user.upsert({
         where: { email: user.user_email || `${user.user_username}@migrated.local` },
         update: {},
         create: {
           email: user.user_email || `${user.user_username}@migrated.local`,
+          password: password,
           name: `${user.user_first_name || ""} ${user.user_last_name || ""}`.trim(),
           role: role,
           createdAt: user.created_at ? new Date(user.created_at) : new Date(),

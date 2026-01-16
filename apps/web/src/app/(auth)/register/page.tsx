@@ -7,7 +7,9 @@ import { useRouter } from 'next/navigation';
 export default function RegisterPage() {
   const router = useRouter();
   const [formData, setFormData] = useState({
-    name: '',
+    username: '',
+    firstName: '',
+    lastName: '',
     email: '',
     password: '',
     confirmPassword: '',
@@ -31,8 +33,35 @@ export default function RegisterPage() {
       return;
     }
 
+    // Password validation
     if (formData.password.length < 8) {
       setError('Password must be at least 8 characters');
+      return;
+    }
+    if (!/[A-Z]/.test(formData.password)) {
+      setError('Password must contain at least one uppercase letter');
+      return;
+    }
+    if (!/[a-z]/.test(formData.password)) {
+      setError('Password must contain at least one lowercase letter');
+      return;
+    }
+    if (!/[0-9]/.test(formData.password)) {
+      setError('Password must contain at least one number');
+      return;
+    }
+    if (!/[^A-Za-z0-9]/.test(formData.password)) {
+      setError('Password must contain at least one special character');
+      return;
+    }
+
+    // Username validation
+    if (formData.username.length < 3) {
+      setError('Username must be at least 3 characters');
+      return;
+    }
+    if (!/^[a-zA-Z0-9_]+$/.test(formData.username)) {
+      setError('Username can only contain letters, numbers, and underscores');
       return;
     }
 
@@ -43,15 +72,21 @@ export default function RegisterPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          name: formData.name,
-          email: formData.email,
+          username: formData.username,
           password: formData.password,
+          firstName: formData.firstName || undefined,
+          lastName: formData.lastName || undefined,
+          email: formData.email || undefined,
         }),
       });
 
       if (!res.ok) {
         const data = await res.json();
-        throw new Error(data.message || 'Registration failed');
+        // Handle validation errors from server
+        if (data.details && Array.isArray(data.details)) {
+          throw new Error(data.details[0] || 'Registration failed');
+        }
+        throw new Error(data.error || data.message || 'Registration failed');
       }
 
       router.push('/login?registered=true');
@@ -90,7 +125,7 @@ export default function RegisterPage() {
             </p>
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-5">
+          <form onSubmit={handleSubmit} className="space-y-4" autoComplete="on">
             {error && (
               <div className="p-4 bg-red-50 border border-red-200 rounded-xl text-red-700 text-sm">
                 {error}
@@ -98,24 +133,61 @@ export default function RegisterPage() {
             )}
 
             <div>
-              <label htmlFor="name" className="block text-sm font-medium text-slate-700 mb-2">
-                Full name
+              <label htmlFor="username" className="block text-sm font-medium text-slate-700 mb-2">
+                Username *
               </label>
               <input
-                id="name"
-                name="name"
+                id="username"
+                name="username"
                 type="text"
-                value={formData.name}
+                value={formData.username}
                 onChange={handleChange}
                 required
+                autoComplete="username"
                 className="w-full px-4 py-3 rounded-xl border border-slate-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none transition-all"
-                placeholder="John Doe"
+                placeholder="Choose a username"
               />
+              <p className="mt-1 text-xs text-slate-500">
+                Letters, numbers, and underscores only
+              </p>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label htmlFor="firstName" className="block text-sm font-medium text-slate-700 mb-2">
+                  First name
+                </label>
+                <input
+                  id="firstName"
+                  name="firstName"
+                  type="text"
+                  value={formData.firstName}
+                  onChange={handleChange}
+                  autoComplete="given-name"
+                  className="w-full px-4 py-3 rounded-xl border border-slate-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none transition-all"
+                  placeholder="John"
+                />
+              </div>
+              <div>
+                <label htmlFor="lastName" className="block text-sm font-medium text-slate-700 mb-2">
+                  Last name
+                </label>
+                <input
+                  id="lastName"
+                  name="lastName"
+                  type="text"
+                  value={formData.lastName}
+                  onChange={handleChange}
+                  autoComplete="family-name"
+                  className="w-full px-4 py-3 rounded-xl border border-slate-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none transition-all"
+                  placeholder="Doe"
+                />
+              </div>
             </div>
 
             <div>
               <label htmlFor="email" className="block text-sm font-medium text-slate-700 mb-2">
-                Email address
+                Email address (for password recovery)
               </label>
               <input
                 id="email"
@@ -123,7 +195,7 @@ export default function RegisterPage() {
                 type="email"
                 value={formData.email}
                 onChange={handleChange}
-                required
+                autoComplete="email"
                 className="w-full px-4 py-3 rounded-xl border border-slate-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none transition-all"
                 placeholder="you@example.com"
               />
@@ -131,7 +203,7 @@ export default function RegisterPage() {
 
             <div>
               <label htmlFor="password" className="block text-sm font-medium text-slate-700 mb-2">
-                Password
+                Password *
               </label>
               <input
                 id="password"
@@ -140,14 +212,18 @@ export default function RegisterPage() {
                 value={formData.password}
                 onChange={handleChange}
                 required
+                autoComplete="new-password"
                 className="w-full px-4 py-3 rounded-xl border border-slate-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none transition-all"
                 placeholder="••••••••"
               />
+              <p className="mt-1.5 text-xs text-slate-500">
+                Min 8 characters with uppercase, lowercase, number, and special character
+              </p>
             </div>
 
             <div>
               <label htmlFor="confirmPassword" className="block text-sm font-medium text-slate-700 mb-2">
-                Confirm password
+                Confirm password *
               </label>
               <input
                 id="confirmPassword"
@@ -156,6 +232,7 @@ export default function RegisterPage() {
                 value={formData.confirmPassword}
                 onChange={handleChange}
                 required
+                autoComplete="new-password"
                 className="w-full px-4 py-3 rounded-xl border border-slate-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none transition-all"
                 placeholder="••••••••"
               />
@@ -186,6 +263,22 @@ export default function RegisterPage() {
               <a href="#" className="text-blue-600 hover:underline">Privacy Policy</a>
             </p>
           </form>
+
+          {/* HIPAA Security Notice */}
+          <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-xl">
+            <div className="flex items-start gap-3">
+              <svg className="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+              </svg>
+              <div>
+                <h4 className="text-sm font-semibold text-blue-900">Protected Health Information</h4>
+                <p className="text-xs text-blue-700 mt-1">
+                  Your account will provide access to PHI. All activities are logged for HIPAA compliance.
+                  Provide an email to enable password recovery via Google.
+                </p>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 

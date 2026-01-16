@@ -19,6 +19,7 @@
     "@xoai/auth": "workspace:*",
     "@xoai/db": "workspace:*",
     "@xoai/ui": "workspace:*",
+    "bcryptjs": "^3.0.3",
     "next": "^15.0.0",
     "next-auth": "^4.24.0",
     "next-pwa": "^5.6.0",
@@ -28,6 +29,7 @@
     "zod": "^3.22.0"
   },
   "devDependencies": {
+    "@types/bcryptjs": "^3.0.0",
     "@types/node": "^20.10.0",
     "@types/react": "^18.2.0",
     "@types/react-dom": "^18.2.0",
