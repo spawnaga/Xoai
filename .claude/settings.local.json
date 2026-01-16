@@ -47,7 +47,11 @@
       "Bash(curl:*)",
       "Bash(node:*)",
       "Bash(/c/Users/alial/AppData/Local/pnpm/.tools/pnpm/8.15.0/bin/pnpm.CMD dev)",
-      "Bash(/c/Users/alial/AppData/Local/pnpm/.tools/pnpm/8.15.0/bin/pnpm.CMD run dev:*)"
+      "Bash(/c/Users/alial/AppData/Local/pnpm/.tools/pnpm/8.15.0/bin/pnpm.CMD run dev:*)",
+      "Bash(cat:*)",
+      "WebSearch",
+      "Bash(npx prisma@5.9.0 generate:*)",
+      "Bash(cmd /c \"pnpm test\")"
     ]
   }
 }

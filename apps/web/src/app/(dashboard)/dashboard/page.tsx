@@ -1,62 +1,49 @@
-'use client';
-
-import { useSession } from 'next-auth/react';
 import Link from 'next/link';
+import { Suspense } from 'react';
+import { requireSession, logPHIAccess } from '@/lib/auth';
+import { getServerCaller } from '@/lib/trpc-server';
 
-const stats = [
+/**
+ * Dashboard Home Page (Server Component)
+ *
+ * SSR Benefits:
+ * - Stats fetched server-side before render
+ * - No loading spinners for initial data
+ * - SEO friendly
+ * - PHI access logged server-side
+ *
+ * HIPAA Compliance:
+ * - Server-side session validation
+ * - PHI access audit logging
+ */
+
+// Stats configuration (icons are passed as component refs)
+const statsConfig = [
   {
     name: 'Total Patients',
-    value: '1',
-    change: '+1 this week',
-    changeType: 'positive',
+    key: 'patients',
     href: '/dashboard/patients',
-    icon: (
-      <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-      </svg>
-    ),
     bgColor: 'bg-blue-50',
     iconColor: 'text-blue-600',
   },
   {
     name: "Today's Encounters",
-    value: '0',
-    change: 'No encounters today',
-    changeType: 'neutral',
+    key: 'encounters',
     href: '/dashboard/encounters',
-    icon: (
-      <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-      </svg>
-    ),
     bgColor: 'bg-emerald-50',
     iconColor: 'text-emerald-600',
   },
   {
     name: 'Pending Reviews',
-    value: '0',
-    change: 'All caught up',
-    changeType: 'positive',
+    key: 'observations',
     href: '/dashboard/observations',
-    icon: (
-      <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
-      </svg>
-    ),
     bgColor: 'bg-amber-50',
     iconColor: 'text-amber-600',
   },
   {
     name: 'Active Medications',
-    value: '0',
-    change: 'No active prescriptions',
-    changeType: 'neutral',
+    key: 'medications',
     href: '/dashboard/medications',
-    icon: (
-      <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
-      </svg>
-    ),
     bgColor: 'bg-purple-50',
     iconColor: 'text-purple-600',
   },
@@ -67,67 +54,101 @@ const quickActions = [
     name: 'Add Patient',
     description: 'Register a new patient in the system',
     href: '/dashboard/patients/new',
-    icon: (
-      <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
-      </svg>
-    ),
     color: 'blue',
   },
   {
     name: 'New Encounter',
     description: 'Start a clinical encounter',
     href: '/dashboard/encounters/new',
-    icon: (
-      <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-      </svg>
-    ),
     color: 'emerald',
   },
   {
     name: 'Record Vitals',
     description: 'Add vital signs observation',
     href: '/dashboard/observations/vitals',
-    icon: (
-      <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-      </svg>
-    ),
     color: 'amber',
   },
   {
     name: 'Prescribe',
     description: 'Create a new prescription',
     href: '/dashboard/medications/new',
-    icon: (
-      <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-      </svg>
-    ),
     color: 'purple',
   },
 ];
 
-const recentPatients = [
-  {
-    id: 1,
-    name: 'Santa Clause',
-    mrn: 'PAT-001',
-    lastVisit: 'Dec 25, 2024',
-    status: 'Active',
-  },
-];
+function getGreeting(): string {
+  const hour = new Date().getHours();
+  if (hour < 12) return 'Good morning';
+  if (hour < 18) return 'Good afternoon';
+  return 'Good evening';
+}
 
-export default function DashboardPage() {
-  const { data: session } = useSession();
+// Server-side data fetching
+async function getDashboardStats() {
+  try {
+    const caller = await getServerCaller();
 
-  const getGreeting = () => {
-    const hour = new Date().getHours();
-    if (hour < 12) return 'Good morning';
-    if (hour < 18) return 'Good afternoon';
-    return 'Good evening';
-  };
+    // Get today's encounters using the proper API method
+    const todayEncounters = await caller.encounter.today().catch(() => []);
+    const inProgressEncounters = todayEncounters.filter(e => e.status === 'IN_PROGRESS').length;
+
+    // Get patient list for count
+    const patientsResult = await caller.patient.list({ limit: 100 }).catch(() => ({ items: [] }));
+    const patientCount = patientsResult.items.length;
+
+    // Note: observations and medications require patientId, so we show aggregate counts
+    // In production, you'd create dedicated stats endpoints
+    return {
+      patients: { value: patientCount, change: patientCount > 0 ? `${patientCount} total` : 'No patients yet' },
+      encounters: { value: inProgressEncounters, change: inProgressEncounters > 0 ? `${inProgressEncounters} in progress` : 'No encounters today' },
+      observations: { value: todayEncounters.length, change: todayEncounters.length > 0 ? `${todayEncounters.length} today` : 'All caught up' },
+      medications: { value: 0, change: 'View by patient' },
+    };
+  } catch (error) {
+    console.error('Error fetching dashboard stats:', error);
+    return {
+      patients: { value: 0, change: 'Unable to load' },
+      encounters: { value: 0, change: 'Unable to load' },
+      observations: { value: 0, change: 'Unable to load' },
+      medications: { value: 0, change: 'Unable to load' },
+    };
+  }
+}
+
+async function getRecentPatients() {
+  try {
+    const caller = await getServerCaller();
+    const result = await caller.patient.list({ limit: 5 });
+    return result.items.map((p) => ({
+      id: p.id,
+      name: `${p.firstName || ''} ${p.lastName || ''}`.trim() || 'Unknown',
+      mrn: p.mrn || 'N/A',
+      lastVisit: new Date(p.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+      status: 'Active',
+    }));
+  } catch (error) {
+    console.error('Error fetching recent patients:', error);
+    return [];
+  }
+}
+
+export default async function DashboardPage() {
+  // Server-side session check
+  const session = await requireSession('/dashboard');
+
+  // Log dashboard access for HIPAA audit
+  await logPHIAccess('VIEW', 'Dashboard', 'home', {
+    section: 'dashboard-home',
+  });
+
+  // Fetch data server-side
+  const [stats, recentPatients] = await Promise.all([
+    getDashboardStats(),
+    getRecentPatients(),
+  ]);
+
+  const greeting = getGreeting();
+  const firstName = session.user.name?.split(' ')[0] || 'Doctor';
 
   return (
     <div className="space-y-8">
@@ -135,7 +156,7 @@ export default function DashboardPage() {
       <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
         <div>
           <h1 className="text-2xl lg:text-3xl font-bold text-slate-900">
-            {getGreeting()}, {session?.user?.name?.split(' ')[0] || 'Doctor'}
+            {greeting}, {firstName}
           </h1>
           <p className="mt-1 text-slate-500">
             Here&apos;s an overview of your clinical activity today.
@@ -156,32 +177,32 @@ export default function DashboardPage() {
 
       {/* Stats Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6">
-        {stats.map((stat) => (
-          <Link
-            key={stat.name}
-            href={stat.href}
-            className="group relative bg-white rounded-2xl p-6 shadow-sm border border-slate-200 hover:shadow-lg hover:border-slate-300 transition-all duration-200"
-          >
-            <div className="flex items-start justify-between">
-              <div className={`p-3 rounded-xl ${stat.bgColor}`}>
-                <div className={stat.iconColor}>{stat.icon}</div>
+        {statsConfig.map((stat) => {
+          const data = stats[stat.key as keyof typeof stats];
+          return (
+            <Link
+              key={stat.name}
+              href={stat.href}
+              className="group relative bg-white rounded-2xl p-6 shadow-sm border border-slate-200 hover:shadow-lg hover:border-slate-300 transition-all duration-200"
+            >
+              <div className="flex items-start justify-between">
+                <div className={`p-3 rounded-xl ${stat.bgColor}`}>
+                  <div className={stat.iconColor}>
+                    <StatIcon type={stat.key} />
+                  </div>
+                </div>
+                <svg className="h-5 w-5 text-slate-300 group-hover:text-slate-400 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                </svg>
               </div>
-              <svg className="h-5 w-5 text-slate-300 group-hover:text-slate-400 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-              </svg>
-            </div>
-            <div className="mt-4">
-              <p className="text-sm font-medium text-slate-500">{stat.name}</p>
-              <p className="mt-1 text-3xl font-bold text-slate-900">{stat.value}</p>
-              <p className={`mt-1 text-xs font-medium ${
-                stat.changeType === 'positive' ? 'text-emerald-600' :
-                stat.changeType === 'negative' ? 'text-red-600' : 'text-slate-400'
-              }`}>
-                {stat.change}
-              </p>
-            </div>
-          </Link>
-        ))}
+              <div className="mt-4">
+                <p className="text-sm font-medium text-slate-500">{stat.name}</p>
+                <p className="mt-1 text-3xl font-bold text-slate-900">{data.value}</p>
+                <p className="mt-1 text-xs font-medium text-slate-400">{data.change}</p>
+              </div>
+            </Link>
+          );
+        })}
       </div>
 
       {/* Quick Actions */}
@@ -194,10 +215,10 @@ export default function DashboardPage() {
             <Link
               key={action.name}
               href={action.href}
-              className={`group relative flex items-center gap-4 p-4 bg-white rounded-xl border border-slate-200 hover:border-${action.color}-300 hover:bg-${action.color}-50/50 transition-all duration-200`}
+              className="group relative flex items-center gap-4 p-4 bg-white rounded-xl border border-slate-200 hover:border-blue-300 hover:bg-blue-50/50 transition-all duration-200"
             >
-              <div className={`p-2.5 rounded-lg bg-${action.color}-100 text-${action.color}-600 group-hover:bg-${action.color}-200 transition-colors`}>
-                {action.icon}
+              <div className="p-2.5 rounded-lg bg-blue-100 text-blue-600 group-hover:bg-blue-200 transition-colors">
+                <ActionIcon type={action.name} />
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-semibold text-slate-900 group-hover:text-slate-700">
@@ -230,7 +251,7 @@ export default function DashboardPage() {
               {recentPatients.map((patient) => (
                 <div key={patient.id} className="px-6 py-4 flex items-center gap-4 hover:bg-slate-50 transition-colors">
                   <div className="h-10 w-10 rounded-full bg-gradient-to-br from-blue-500 to-indigo-500 flex items-center justify-center text-white font-semibold text-sm">
-                    {patient.name.split(' ').map(n => n[0]).join('')}
+                    {patient.name.split(' ').map((n: string) => n[0]).join('').slice(0, 2)}
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-semibold text-slate-900">{patient.name}</p>
@@ -240,9 +261,7 @@ export default function DashboardPage() {
                     <p className="text-xs text-slate-500">Last visit</p>
                     <p className="text-sm font-medium text-slate-700">{patient.lastVisit}</p>
                   </div>
-                  <span className={`px-2.5 py-1 text-xs font-medium rounded-full ${
-                    patient.status === 'Active' ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-600'
-                  }`}>
+                  <span className="px-2.5 py-1 text-xs font-medium rounded-full bg-emerald-100 text-emerald-700">
                     {patient.status}
                   </span>
                 </div>
@@ -302,7 +321,7 @@ export default function DashboardPage() {
                 <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                 </svg>
-                Role-Based Access Control
+                Server-Side Auth (SSR)
               </div>
             </div>
           </div>
@@ -346,3 +365,71 @@ export default function DashboardPage() {
     </div>
   );
 }
+
+// Icon components
+function StatIcon({ type }: { type: string }) {
+  switch (type) {
+    case 'patients':
+      return (
+        <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+        </svg>
+      );
+    case 'encounters':
+      return (
+        <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+        </svg>
+      );
+    case 'observations':
+      return (
+        <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+        </svg>
+      );
+    case 'medications':
+      return (
+        <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
+        </svg>
+      );
+    default:
+      return null;
+  }
+}
+
+function ActionIcon({ type }: { type: string }) {
+  switch (type) {
+    case 'Add Patient':
+      return (
+        <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
+        </svg>
+      );
+    case 'New Encounter':
+      return (
+        <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+        </svg>
+      );
+    case 'Record Vitals':
+      return (
+        <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+        </svg>
+      );
+    case 'Prescribe':
+      return (
+        <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+        </svg>
+      );
+    default:
+      return null;
+  }
+}
+
+export const metadata = {
+  title: 'Dashboard | Xoai Healthcare',
+  description: 'Healthcare management dashboard overview',
+};

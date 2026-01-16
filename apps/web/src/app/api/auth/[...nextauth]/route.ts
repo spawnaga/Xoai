@@ -204,7 +204,7 @@ const handler = NextAuth({
             resourceType: 'User',
             resourceId: token.id as string,
             userId: token.id as string,
-            details: { username: token.username },
+            details: { username: String(token.username || '') },
           },
         });
       }

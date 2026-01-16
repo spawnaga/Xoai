@@ -34,6 +34,10 @@ export default defineConfig({
       '@xoai/auth': path.resolve(__dirname, './packages/auth/src'),
       '@xoai/ui': path.resolve(__dirname, './packages/ui/src'),
       '@xoai/ai': path.resolve(__dirname, './packages/ai/src'),
+      // Web app aliases
+      '@/lib': path.resolve(__dirname, './apps/web/src/lib'),
+      '@/components': path.resolve(__dirname, './apps/web/src/components'),
+      '@/app': path.resolve(__dirname, './apps/web/src/app'),
     },
   },
 });

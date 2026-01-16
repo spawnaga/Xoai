@@ -1,102 +1,13 @@
-'use client';
-
 import Link from 'next/link';
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { Suspense } from 'react';
+import { RegisterForm } from '@/components/auth/register-form';
+
+export const metadata = {
+  title: 'Create Account - Xoai Healthcare',
+  description: 'Create your HIPAA-compliant healthcare platform account',
+};
 
 export default function RegisterPage() {
-  const router = useRouter();
-  const [formData, setFormData] = useState({
-    username: '',
-    firstName: '',
-    lastName: '',
-    email: '',
-    password: '',
-    confirmPassword: '',
-  });
-  const [error, setError] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFormData((prev) => ({
-      ...prev,
-      [e.target.name]: e.target.value,
-    }));
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError('');
-
-    if (formData.password !== formData.confirmPassword) {
-      setError('Passwords do not match');
-      return;
-    }
-
-    // Password validation
-    if (formData.password.length < 8) {
-      setError('Password must be at least 8 characters');
-      return;
-    }
-    if (!/[A-Z]/.test(formData.password)) {
-      setError('Password must contain at least one uppercase letter');
-      return;
-    }
-    if (!/[a-z]/.test(formData.password)) {
-      setError('Password must contain at least one lowercase letter');
-      return;
-    }
-    if (!/[0-9]/.test(formData.password)) {
-      setError('Password must contain at least one number');
-      return;
-    }
-    if (!/[^A-Za-z0-9]/.test(formData.password)) {
-      setError('Password must contain at least one special character');
-      return;
-    }
-
-    // Username validation
-    if (formData.username.length < 3) {
-      setError('Username must be at least 3 characters');
-      return;
-    }
-    if (!/^[a-zA-Z0-9_]+$/.test(formData.username)) {
-      setError('Username can only contain letters, numbers, and underscores');
-      return;
-    }
-
-    setIsLoading(true);
-
-    try {
-      const res = await fetch('/api/auth/register', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          username: formData.username,
-          password: formData.password,
-          firstName: formData.firstName || undefined,
-          lastName: formData.lastName || undefined,
-          email: formData.email || undefined,
-        }),
-      });
-
-      if (!res.ok) {
-        const data = await res.json();
-        // Handle validation errors from server
-        if (data.details && Array.isArray(data.details)) {
-          throw new Error(data.details[0] || 'Registration failed');
-        }
-        throw new Error(data.error || data.message || 'Registration failed');
-      }
-
-      router.push('/login?registered=true');
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'An error occurred');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
   return (
     <div className="min-h-screen flex">
       {/* Left Panel - Form */}
@@ -125,146 +36,12 @@ export default function RegisterPage() {
             </p>
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-4" autoComplete="on">
-            {error && (
-              <div className="p-4 bg-red-50 border border-red-200 rounded-xl text-red-700 text-sm">
-                {error}
-              </div>
-            )}
+          {/* Client-side form with server action - Progressive Enhancement */}
+          <Suspense fallback={<RegisterFormSkeleton />}>
+            <RegisterForm />
+          </Suspense>
 
-            <div>
-              <label htmlFor="username" className="block text-sm font-medium text-slate-700 mb-2">
-                Username *
-              </label>
-              <input
-                id="username"
-                name="username"
-                type="text"
-                value={formData.username}
-                onChange={handleChange}
-                required
-                autoComplete="username"
-                className="w-full px-4 py-3 rounded-xl border border-slate-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none transition-all"
-                placeholder="Choose a username"
-              />
-              <p className="mt-1 text-xs text-slate-500">
-                Letters, numbers, and underscores only
-              </p>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label htmlFor="firstName" className="block text-sm font-medium text-slate-700 mb-2">
-                  First name
-                </label>
-                <input
-                  id="firstName"
-                  name="firstName"
-                  type="text"
-                  value={formData.firstName}
-                  onChange={handleChange}
-                  autoComplete="given-name"
-                  className="w-full px-4 py-3 rounded-xl border border-slate-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none transition-all"
-                  placeholder="John"
-                />
-              </div>
-              <div>
-                <label htmlFor="lastName" className="block text-sm font-medium text-slate-700 mb-2">
-                  Last name
-                </label>
-                <input
-                  id="lastName"
-                  name="lastName"
-                  type="text"
-                  value={formData.lastName}
-                  onChange={handleChange}
-                  autoComplete="family-name"
-                  className="w-full px-4 py-3 rounded-xl border border-slate-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none transition-all"
-                  placeholder="Doe"
-                />
-              </div>
-            </div>
-
-            <div>
-              <label htmlFor="email" className="block text-sm font-medium text-slate-700 mb-2">
-                Email address (for password recovery)
-              </label>
-              <input
-                id="email"
-                name="email"
-                type="email"
-                value={formData.email}
-                onChange={handleChange}
-                autoComplete="email"
-                className="w-full px-4 py-3 rounded-xl border border-slate-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none transition-all"
-                placeholder="you@example.com"
-              />
-            </div>
-
-            <div>
-              <label htmlFor="password" className="block text-sm font-medium text-slate-700 mb-2">
-                Password *
-              </label>
-              <input
-                id="password"
-                name="password"
-                type="password"
-                value={formData.password}
-                onChange={handleChange}
-                required
-                autoComplete="new-password"
-                className="w-full px-4 py-3 rounded-xl border border-slate-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none transition-all"
-                placeholder="••••••••"
-              />
-              <p className="mt-1.5 text-xs text-slate-500">
-                Min 8 characters with uppercase, lowercase, number, and special character
-              </p>
-            </div>
-
-            <div>
-              <label htmlFor="confirmPassword" className="block text-sm font-medium text-slate-700 mb-2">
-                Confirm password *
-              </label>
-              <input
-                id="confirmPassword"
-                name="confirmPassword"
-                type="password"
-                value={formData.confirmPassword}
-                onChange={handleChange}
-                required
-                autoComplete="new-password"
-                className="w-full px-4 py-3 rounded-xl border border-slate-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none transition-all"
-                placeholder="••••••••"
-              />
-            </div>
-
-            <button
-              type="submit"
-              disabled={isLoading}
-              className="w-full py-3 px-4 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-semibold rounded-xl hover:from-blue-700 hover:to-indigo-700 focus:ring-2 focus:ring-blue-500/20 focus:ring-offset-2 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-blue-500/25"
-            >
-              {isLoading ? (
-                <span className="flex items-center justify-center gap-2">
-                  <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                  </svg>
-                  Creating account...
-                </span>
-              ) : (
-                'Create account'
-              )}
-            </button>
-
-            <p className="text-xs text-slate-500 text-center">
-              By creating an account, you agree to our{' '}
-              <a href="#" className="text-blue-600 hover:underline">Terms of Service</a>
-              {' '}and{' '}
-              <a href="#" className="text-blue-600 hover:underline">Privacy Policy</a>
-            </p>
-          </form>
-
-          {/* HIPAA Security Notice */}
+          {/* HIPAA Security Notice (Server-rendered) */}
           <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-xl">
             <div className="flex items-start gap-3">
               <svg className="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -282,7 +59,7 @@ export default function RegisterPage() {
         </div>
       </div>
 
-      {/* Right Panel - Benefits */}
+      {/* Right Panel - Benefits (Server Component) */}
       <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-blue-600 via-indigo-600 to-purple-700 p-12 flex-col justify-between">
         <div>
           <div className="flex items-center gap-3">
@@ -301,17 +78,10 @@ export default function RegisterPage() {
           </h1>
 
           <div className="space-y-4">
-            {[
-              { icon: '🏥', text: 'FHIR R4 & HL7 v2.x compliant' },
-              { icon: '🔒', text: 'HIPAA-compliant security' },
-              { icon: '🤖', text: 'AI-powered clinical decision support' },
-              { icon: '📊', text: 'Real-time analytics dashboard' },
-            ].map((benefit, i) => (
-              <div key={i} className="flex items-center gap-3 text-blue-100">
-                <span className="text-2xl">{benefit.icon}</span>
-                <span className="text-lg">{benefit.text}</span>
-              </div>
-            ))}
+            <BenefitItem icon="🏥" text="FHIR R4 & HL7 v2.x compliant" />
+            <BenefitItem icon="🔒" text="HIPAA-compliant security" />
+            <BenefitItem icon="🤖" text="AI-powered clinical decision support" />
+            <BenefitItem icon="📊" text="Real-time analytics dashboard" />
           </div>
         </div>
 
@@ -319,6 +89,50 @@ export default function RegisterPage() {
           © {new Date().getFullYear()} Xoai Healthcare. All rights reserved.
         </div>
       </div>
+    </div>
+  );
+}
+
+function BenefitItem({ icon, text }: { icon: string; text: string }) {
+  return (
+    <div className="flex items-center gap-3 text-blue-100">
+      <span className="text-2xl">{icon}</span>
+      <span className="text-lg">{text}</span>
+    </div>
+  );
+}
+
+// Loading skeleton for form
+function RegisterFormSkeleton() {
+  return (
+    <div className="space-y-4 animate-pulse">
+      <div>
+        <div className="h-4 w-20 bg-slate-200 rounded mb-2"></div>
+        <div className="h-12 bg-slate-200 rounded-xl"></div>
+      </div>
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <div className="h-4 w-20 bg-slate-200 rounded mb-2"></div>
+          <div className="h-12 bg-slate-200 rounded-xl"></div>
+        </div>
+        <div>
+          <div className="h-4 w-20 bg-slate-200 rounded mb-2"></div>
+          <div className="h-12 bg-slate-200 rounded-xl"></div>
+        </div>
+      </div>
+      <div>
+        <div className="h-4 w-32 bg-slate-200 rounded mb-2"></div>
+        <div className="h-12 bg-slate-200 rounded-xl"></div>
+      </div>
+      <div>
+        <div className="h-4 w-20 bg-slate-200 rounded mb-2"></div>
+        <div className="h-12 bg-slate-200 rounded-xl"></div>
+      </div>
+      <div>
+        <div className="h-4 w-32 bg-slate-200 rounded mb-2"></div>
+        <div className="h-12 bg-slate-200 rounded-xl"></div>
+      </div>
+      <div className="h-12 bg-slate-200 rounded-xl"></div>
     </div>
   );
 }

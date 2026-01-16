@@ -2,6 +2,25 @@ import { NextResponse } from 'next/server';
 import { hash } from 'bcryptjs';
 import { db } from '@xoai/db';
 import { z } from 'zod';
+import {
+  rateLimiters,
+  getClientIdentifier,
+  createRateLimitHeaders,
+} from '@/lib/rate-limit';
+
+/**
+ * Registration API Route
+ *
+ * Security Features:
+ * - Rate limiting (3 per hour per IP)
+ * - HIPAA-compliant password requirements
+ * - Username enumeration prevention
+ * - Comprehensive audit logging
+ *
+ * HIPAA Compliance:
+ * - § 164.312(d): Person or Entity Authentication
+ * - § 164.312(b): Audit Controls
+ */
 
 // HIPAA-compliant password requirements
 const passwordSchema = z
@@ -26,6 +45,38 @@ const registerSchema = z.object({
 
 export async function POST(request: Request) {
   try {
+    // Rate limiting check
+    const clientIp = getClientIdentifier(request.headers);
+    const rateLimitResult = rateLimiters.register(clientIp);
+
+    if (!rateLimitResult.success) {
+      // Log rate limit violation
+      await db.auditLog.create({
+        data: {
+          action: 'REGISTER_RATE_LIMITED',
+          resourceType: 'User',
+          resourceId: 'unknown',
+          userId: null,
+          details: {
+            clientIp,
+            blocked: rateLimitResult.blocked,
+            retryAfter: rateLimitResult.retryAfter,
+          },
+        },
+      });
+
+      return NextResponse.json(
+        {
+          error: 'Too many registration attempts. Please try again later.',
+          retryAfter: rateLimitResult.retryAfter,
+        },
+        {
+          status: 429,
+          headers: createRateLimitHeaders(rateLimitResult),
+        }
+      );
+    }
+
     const body = await request.json();
 
     // Validate input
@@ -43,13 +94,11 @@ export async function POST(request: Request) {
     const { username, password, firstName, lastName, email } = validationResult.data;
     const normalizedUsername = username.toLowerCase().trim();
 
-    // Check if username already exists (case-insensitive)
+    // Check if username already exists
+    // Note: MySQL with utf8mb4 collation is case-insensitive by default
     const existingUser = await db.user.findFirst({
       where: {
-        username: {
-          equals: normalizedUsername,
-          mode: 'insensitive',
-        },
+        username: normalizedUsername,
       },
     });
 
