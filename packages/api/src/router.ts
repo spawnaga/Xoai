@@ -9,6 +9,10 @@ import { prescriptionRouter } from './routers/prescription';
 import { userRouter } from './routers/user';
 import { pharmacyRouter } from './routers/pharmacy';
 import { pharmacyWorkflowRouter } from './routers/pharmacy-workflow';
+import { intakeRouter } from './routers/intake';
+import { fillRouter } from './routers/fill';
+import { verifyRouter } from './routers/verify';
+import { claimsRouter } from './routers/claims';
 
 /**
  * Main application router
@@ -41,6 +45,10 @@ export const appRouter = router({
 
   // Pharmacy operations
   pharmacy: pharmacyRouter,
+  intake: intakeRouter,
+  fill: fillRouter,
+  verify: verifyRouter,
+  claims: claimsRouter,
 
   // Retail pharmacy dispensing workflow
   pharmacyWorkflow: pharmacyWorkflowRouter,
