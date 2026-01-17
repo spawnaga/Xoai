@@ -7,3 +7,4 @@ export { prescriptionRouter } from './prescription';
 export { fhirRouter } from './fhir';
 export { userRouter } from './user';
 export { pharmacyRouter } from './pharmacy';
+export { pharmacyWorkflowRouter } from './pharmacy-workflow';

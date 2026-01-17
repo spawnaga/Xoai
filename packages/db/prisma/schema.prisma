@@ -142,6 +142,10 @@ model Patient {
   willCallBins          WillCallBin[]
   prescriptionTransfers PrescriptionTransfer[]
 
+  // Dispensing Workflow Relations
+  prescriptions         Prescription[]
+  pickupSessions        PickupSession[]
+
   @@index([mrn])
   @@index([lastName, firstName])
   @@index([createdBy])
@@ -410,6 +414,19 @@ model PharmacyStaff {
   pdmpQueries         PDMPQuery[]
   signaturesWitnessed SignatureRecord[]
   immunizationsGiven  ImmunizationRecord[]
+
+  // Dispensing Workflow Relations
+  assignedPrescriptions Prescription[] @relation("AssignedPrescriptions")
+  fillsEntered        PrescriptionFill[] @relation("FillsEntered")
+  fillsFilled         PrescriptionFill[] @relation("FillsFilled")
+  fillsVerified       PrescriptionFill[] @relation("FillsVerified")
+  fillsSold           PrescriptionFill[] @relation("FillsSold")
+  notesCreated        PrescriptionNote[] @relation("NotesCreated")
+  stateChanges        PrescriptionStateHistory[] @relation("StateChanges")
+  durOverrides        PrescriptionDURAlert[] @relation("DUROverrides")
+  durAcknowledged     PrescriptionDURAlert[] @relation("DURAcknowledged")
+  pickupsStarted      PickupSession[] @relation("PickupsStarted")
+  pickupsCompleted    PickupSession[] @relation("PickupsCompleted")
 
   @@index([userId])
   @@index([role])
@@ -999,4 +1016,695 @@ enum TransferStatus {
   COMPLETED
   CANCELLED
   REJECTED
+}
+
+// ============================================================================
+// RETAIL PHARMACY DISPENSING WORKFLOW MODELS
+// ============================================================================
+
+// Prescription Workflow State Machine (15 states)
+enum PrescriptionWorkflowState {
+  INTAKE                // Just received (e-Rx, fax, phone, walk-in)
+  DATA_ENTRY            // Being entered/verified by technician
+  DATA_ENTRY_COMPLETE   // Data entry finished, awaiting insurance
+  INSURANCE_PENDING     // Awaiting insurance adjudication
+  INSURANCE_REJECTED    // Insurance rejected, needs resolution
+  DUR_REVIEW            // DUR alerts need pharmacist review
+  PRIOR_AUTH_PENDING    // Prior authorization submitted
+  PRIOR_AUTH_APPROVED   // PA approved, ready to proceed
+  FILLING               // Being filled by technician
+  VERIFICATION          // Awaiting pharmacist verification
+  READY                 // Ready for pickup/delivery
+  SOLD                  // Picked up by patient
+  DELIVERED             // Delivered to patient
+  RETURNED_TO_STOCK     // Returned to stock (not picked up)
+  CANCELLED             // Cancelled
+}
+
+enum WorkflowPriority {
+  STAT                  // Emergency - immediate
+  URGENT                // Priority processing
+  NORMAL                // Standard processing
+  LOW                   // Can wait
+}
+
+enum ClaimTransactionType {
+  B1                    // Original billing
+  B2                    // Reversal
+  B3                    // Rebill
+  E1                    // Eligibility verification
+}
+
+enum ClaimStatusType {
+  PENDING               // Not yet submitted
+  SUBMITTED             // Sent to PBM
+  APPROVED              // Paid/approved
+  REJECTED              // Rejected by PBM
+  PAID                  // Payment received
+  REVERSED              // Claim reversed
+  APPEALING             // Under appeal
+}
+
+enum PrescriptionNoteType {
+  GENERAL               // General notes
+  CLINICAL              // Clinical information
+  INSURANCE             // Insurance-related
+  PATIENT_REQUEST       // Patient communication
+  PRESCRIBER_COMM       // Prescriber communication
+  DUR_OVERRIDE          // DUR override documentation
+  WORKFLOW              // System workflow notes
+}
+
+enum PickupSessionType {
+  RETAIL                // In-store pickup
+  DRIVE_THRU            // Drive-through window
+  DELIVERY              // Home delivery
+  CURBSIDE              // Curbside pickup
+  MAIL                  // Mail order
+}
+
+enum PickupSessionStatus {
+  IN_PROGRESS           // Active session
+  COMPLETED             // Pickup completed
+  CANCELLED             // Session cancelled
+  PARTIAL               // Partial pickup
+}
+
+enum DAWCode {
+  DAW_0                 // No product selection indicated
+  DAW_1                 // Substitution not allowed by prescriber
+  DAW_2                 // Substitution allowed - patient requested product
+  DAW_3                 // Substitution allowed - pharmacist selected
+  DAW_4                 // Substitution allowed - generic not in stock
+  DAW_5                 // Substitution allowed - brand dispensed as generic
+  DAW_6                 // Override
+  DAW_7                 // Substitution not allowed - brand mandated by law
+  DAW_8                 // Substitution allowed - generic not available
+  DAW_9                 // Other
+}
+
+// Prescriber (Provider) Information
+model Prescriber {
+  id                  String    @id @default(cuid())
+
+  // Identification
+  npiNumber           String    @unique
+  deaNumber           String?   // DEA registration
+  deaSuffix           String?   // For mid-level practitioners
+  stateLicense        String?
+  licenseState        String?
+
+  // Personal Info
+  firstName           String
+  lastName            String
+  middleName          String?
+  suffix              String?   // MD, DO, NP, PA, etc.
+  specialty           String?
+
+  // Contact Info
+  phone               String?
+  fax                 String?
+  email               String?
+
+  // Address
+  addressLine1        String?
+  addressLine2        String?
+  city                String?
+  state               String?
+  zipCode             String?
+
+  // Practice Info
+  practiceName        String?
+  practiceNpi         String?
+
+  // Verification Status
+  isVerified          Boolean   @default(false)
+  verifiedAt          DateTime?
+  verifiedMethod      String?   // NPPES, state board, manual
+
+  // DEA Specifics
+  canPrescribeCII     Boolean   @default(false)
+  canPrescribeCIII_V  Boolean   @default(false)
+  deaExpiration       DateTime?
+
+  isActive            Boolean   @default(true)
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  prescriptions       Prescription[]
+
+  @@index([npiNumber])
+  @@index([deaNumber])
+  @@index([lastName, firstName])
+}
+
+// Drug Reference (Medication Master)
+model Drug {
+  id                  String    @id @default(cuid())
+
+  // NDC Identification
+  ndc                 String    @unique  // 11-digit normalized
+  ndc54               String?   // 5-4-2 formatted
+
+  // Drug Names
+  brandName           String
+  genericName         String
+  displayName         String    // Primary display name
+
+  // Strength & Form
+  strength            String
+  strengthUnit        String?
+  dosageForm          String
+  route               String?
+
+  // Classification
+  deaSchedule         Int?      // 2-5 for controlled, null for non-controlled
+  drugClass           String?
+  therapeuticClass    String?
+
+  // Packaging
+  packageSize         Float?
+  packageUnit         String?
+  packageDescription  String?
+
+  // Identifiers
+  rxcui               String?   // RxNorm CUI
+  gpi                 String?   // Generic Product Identifier
+  gcn                 String?   // Generic Code Number
+
+  // Manufacturer
+  labelerName         String?
+  labelerCode         String?   // First 5 digits of NDC
+
+  // Pricing (AWP, WAC)
+  awpPrice            Float?
+  awpPackagePrice     Float?
+  wacPrice            Float?
+
+  // Dispensing
+  defaultDaysSupply   Int?
+  defaultQuantity     Float?
+  tallManName         String?   // Tall Man lettering for LASA drugs
+
+  // Flags
+  isUnitDose          Boolean   @default(false)
+  requiresFridge      Boolean   @default(false)
+  isHazardous         Boolean   @default(false)
+  isBrandOnly         Boolean   @default(false)
+  isNarrowTherapeutic Boolean   @default(false)
+  isHighAlert         Boolean   @default(false)
+
+  isActive            Boolean   @default(true)
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  inventory           DrugInventory[]
+  prescriptions       Prescription[]
+  prescriptionFills   PrescriptionFill[]
+
+  @@index([ndc])
+  @@index([genericName])
+  @@index([brandName])
+  @@index([rxcui])
+}
+
+// Drug Inventory (NDC-level with lot tracking)
+model DrugInventory {
+  id                  String    @id @default(cuid())
+  drugId              String
+
+  // Lot Information
+  lotNumber           String
+  expirationDate      DateTime
+
+  // Quantity
+  quantityOnHand      Int       @default(0)
+  quantityAllocated   Int       @default(0)  // Reserved for pending fills
+  quantityAvailable   Int       @default(0)  // onHand - allocated
+
+  // Purchasing
+  acquisitionCost     Float?
+  wholesalerId        String?
+  poNumber            String?
+  receivedDate        DateTime?
+
+  // Location
+  shelfLocation       String?
+  binNumber           String?
+
+  // Flags
+  isRefrigerated      Boolean   @default(false)
+  isQuarantined       Boolean   @default(false)
+  quarantineReason    String?
+
+  isActive            Boolean   @default(true)
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  drug                Drug      @relation(fields: [drugId], references: [id])
+  prescriptionFills   PrescriptionFill[]
+
+  @@unique([drugId, lotNumber])
+  @@index([drugId])
+  @@index([expirationDate])
+  @@index([lotNumber])
+}
+
+// Insurance Plan
+model InsurancePlan {
+  id                  String    @id @default(cuid())
+
+  // Plan Identification
+  bin                 String    // 6-digit BIN
+  pcn                 String    // Processor Control Number
+  groupNumber         String?
+  planName            String?
+
+  // PBM Info
+  pbmName             String?
+  pbmPhone            String?
+  helpDeskPhone       String?
+  priorAuthPhone      String?
+  priorAuthFax        String?
+
+  // Plan Details
+  planType            String?   // Commercial, Medicare D, Medicaid, etc.
+  formularyId         String?
+
+  // Copay Structure (defaults)
+  copayGeneric        Float?
+  copayBrandPref      Float?
+  copayBrandNonPref   Float?
+  copaySpecialty      Float?
+
+  // Limits
+  maxDaysSupply       Int?
+  maxRefills          Int?
+
+  isActive            Boolean   @default(true)
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  claimTransactions   ClaimTransaction[]
+  prescriptions       Prescription[]
+
+  @@unique([bin, pcn, groupNumber])
+  @@index([bin])
+  @@index([pcn])
+}
+
+// Core Prescription (Workflow Entity)
+model Prescription {
+  id                  String    @id @default(cuid())
+  rxNumber            String    @unique  // Unique Rx number
+
+  // Patient
+  patientId           String
+
+  // Prescriber
+  prescriberId        String
+
+  // Drug Info
+  drugId              String?   // Link to Drug master
+  drugName            String    // Prescribed drug name
+  drugNdc             String?   // Prescribed NDC
+  strength            String?
+  dosageForm          String?
+
+  // Prescription Details
+  quantityWritten     Int
+  quantityRemaining   Int       // For partial fills
+  daysSupply          Int
+  directions          String    @db.Text  // SIG
+  dawCode             DAWCode   @default(DAW_0)
+  refillsAuthorized   Int       @default(0)
+  refillsRemaining    Int       @default(0)
+
+  // Controlled Substance
+  isControlled        Boolean   @default(false)
+  deaSchedule         Int?      // 2, 3, 4, 5
+
+  // Dates
+  writtenDate         DateTime
+  effectiveDate       DateTime  @default(now())
+  expirationDate      DateTime
+  lastFilledDate      DateTime?
+
+  // Origin
+  intakeChannel       IntakeChannel?
+  intakeId            String?   // Link to PrescriptionIntake
+  eRxMessageId        String?   // Surescripts message ID
+
+  // Workflow State
+  workflowState       PrescriptionWorkflowState @default(INTAKE)
+  priority            WorkflowPriority @default(NORMAL)
+  promiseTime         DateTime?
+  assignedToId        String?   // Staff member working on it
+
+  // Insurance
+  insurancePlanId     String?
+  priorAuthNumber     String?
+  priorAuthStatus     String?
+
+  // Flags
+  requiresCounseling  Boolean   @default(true)
+  requiresIdCheck     Boolean   @default(false)
+  isOnHold            Boolean   @default(false)
+  holdReason          String?
+
+  // EPCS (Electronic Prescribing for Controlled Substances)
+  epcsSignature       String?   @db.Text
+  epcsTimestamp       DateTime?
+
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  patient             Patient   @relation(fields: [patientId], references: [id])
+  prescriber          Prescriber @relation(fields: [prescriberId], references: [id])
+  drug                Drug?     @relation(fields: [drugId], references: [id])
+  insurancePlan       InsurancePlan? @relation(fields: [insurancePlanId], references: [id])
+  assignedTo          PharmacyStaff? @relation("AssignedPrescriptions", fields: [assignedToId], references: [id])
+
+  fills               PrescriptionFill[]
+  claims              ClaimTransaction[]
+  notes               PrescriptionNote[]
+  stateHistory        PrescriptionStateHistory[]
+  durAlerts           PrescriptionDURAlert[]
+
+  @@index([rxNumber])
+  @@index([patientId])
+  @@index([prescriberId])
+  @@index([workflowState])
+  @@index([priority])
+  @@index([promiseTime])
+  @@index([createdAt])
+}
+
+// Prescription Fill Record (one per fill/refill)
+model PrescriptionFill {
+  id                  String    @id @default(cuid())
+  prescriptionId      String
+  fillNumber          Int       // 0 = original, 1+ = refills
+
+  // Drug Dispensed (may differ from prescribed for generics)
+  drugId              String?
+  inventoryId         String?
+  dispensedNdc        String
+  dispensedDrugName   String
+
+  // Quantities
+  quantityDispensed   Int
+  daysSupply          Int
+  isPartialFill       Boolean   @default(false)
+  partialFillReason   String?
+
+  // Lot/Expiration
+  lotNumber           String?
+  expirationDate      DateTime?
+
+  // Pricing
+  acquisitionCost     Float     @default(0)
+  dispensingFee       Float     @default(0)
+  grossPrice          Float     @default(0)
+  insurancePaid       Float     @default(0)
+  patientPaid         Float     @default(0)
+  copayAmount         Float     @default(0)
+
+  // Labels
+  labelsPrinted       Int       @default(0)
+  auxiliaryLabels     String?   // Comma-separated codes
+
+  // Personnel
+  enteredById         String?
+  filledById          String?
+  verifiedById        String?
+  soldById            String?
+
+  // Timestamps
+  enteredAt           DateTime  @default(now())
+  filledAt            DateTime?
+  verifiedAt          DateTime?
+  soldAt              DateTime?
+
+  // Status
+  status              String    @default("pending")  // pending, filling, filled, verified, ready, sold, returned
+  verificationStatus  String    @default("pending")  // pending, in_review, approved, rejected
+
+  // Packaging
+  packagingType       String    @default("vial")
+
+  // Delivery
+  willCallBinId       String?
+  deliveryMethod      String    @default("pickup")
+
+  // Verification Checklist (JSON)
+  verificationData    Json?
+
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  prescription        Prescription @relation(fields: [prescriptionId], references: [id])
+  drug                Drug?     @relation(fields: [drugId], references: [id])
+  inventory           DrugInventory? @relation(fields: [inventoryId], references: [id])
+  enteredBy           PharmacyStaff? @relation("FillsEntered", fields: [enteredById], references: [id])
+  filledBy            PharmacyStaff? @relation("FillsFilled", fields: [filledById], references: [id])
+  verifiedBy          PharmacyStaff? @relation("FillsVerified", fields: [verifiedById], references: [id])
+  soldBy              PharmacyStaff? @relation("FillsSold", fields: [soldById], references: [id])
+  claimTransaction    ClaimTransaction?
+  pickupSession       PickupSession? @relation(fields: [pickupSessionId], references: [id])
+  pickupSessionId     String?
+
+  @@unique([prescriptionId, fillNumber])
+  @@index([prescriptionId])
+  @@index([status])
+  @@index([filledAt])
+  @@index([verifiedAt])
+}
+
+// Claim Transaction (NCPDP)
+model ClaimTransaction {
+  id                  String    @id @default(cuid())
+  prescriptionId      String
+  fillId              String?   @unique
+
+  // Transaction Info
+  transactionType     ClaimTransactionType
+  transactionId       String?   // PBM transaction reference
+
+  // Insurance
+  insurancePlanId     String?
+  bin                 String
+  pcn                 String
+  groupNumber         String?
+  memberId            String
+  personCode          String    @default("01")
+
+  // Claim Details
+  ndc                 String
+  quantity            Float
+  daysSupply          Int
+  dawCode             Int       @default(0)
+
+  // Submitted Pricing
+  ingredientCostSubmitted   Float
+  dispensingFeeSubmitted    Float
+  grossAmountSubmitted      Float
+  usualAndCustomary         Float
+
+  // Response Pricing
+  ingredientCostPaid  Float?
+  dispensingFeePaid   Float?
+  totalAmountPaid     Float?
+  patientPayAmount    Float?
+  copayAmount         Float?
+  coinsuranceAmount   Float?
+  deductibleAmount    Float?
+
+  // Status
+  status              ClaimStatusType @default(PENDING)
+  responseCode        String?   // A=Approved, R=Rejected, P=Paid
+  authorizationNumber String?
+
+  // Reject Info
+  rejectCodes         String?   // Comma-separated reject codes
+  rejectMessages      String?   @db.Text
+
+  // DUR Response
+  durResponseData     Json?
+
+  // Prior Auth
+  priorAuthNumber     String?
+  priorAuthRequired   Boolean   @default(false)
+
+  // Submission Clarification
+  submissionClarificationCode String?  // SCC for 340B, etc.
+
+  // Timestamps
+  submittedAt         DateTime?
+  respondedAt         DateTime?
+
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  prescription        Prescription @relation(fields: [prescriptionId], references: [id])
+  fill                PrescriptionFill? @relation(fields: [fillId], references: [id])
+  insurancePlan       InsurancePlan? @relation(fields: [insurancePlanId], references: [id])
+
+  @@index([prescriptionId])
+  @@index([status])
+  @@index([submittedAt])
+  @@index([transactionId])
+}
+
+// Prescription Notes
+model PrescriptionNote {
+  id                  String    @id @default(cuid())
+  prescriptionId      String
+
+  noteType            PrescriptionNoteType @default(GENERAL)
+  content             String    @db.Text
+
+  // For DUR overrides
+  durCode             String?
+  overrideReason      String?
+
+  // Priority flag
+  isPriority          Boolean   @default(false)
+  isInternal          Boolean   @default(true)  // vs patient-visible
+
+  createdById         String?
+  createdAt           DateTime  @default(now())
+
+  prescription        Prescription @relation(fields: [prescriptionId], references: [id])
+  createdBy           PharmacyStaff? @relation("NotesCreated", fields: [createdById], references: [id])
+
+  @@index([prescriptionId])
+  @@index([noteType])
+  @@index([createdAt])
+}
+
+// Prescription State History (Audit Trail)
+model PrescriptionStateHistory {
+  id                  String    @id @default(cuid())
+  prescriptionId      String
+
+  fromState           PrescriptionWorkflowState?
+  toState             PrescriptionWorkflowState
+
+  changedById         String?
+  changedAt           DateTime  @default(now())
+
+  reason              String?
+  notes               String?   @db.Text
+
+  // Snapshot of key data at time of change
+  snapshotData        Json?
+
+  prescription        Prescription @relation(fields: [prescriptionId], references: [id])
+  changedBy           PharmacyStaff? @relation("StateChanges", fields: [changedById], references: [id])
+
+  @@index([prescriptionId])
+  @@index([changedAt])
+  @@index([toState])
+}
+
+// DUR Alerts for Prescriptions
+model PrescriptionDURAlert {
+  id                  String    @id @default(cuid())
+  prescriptionId      String
+
+  // Alert Details
+  alertType           String    // drug_interaction, allergy, dosing, etc.
+  severity            String    // high, moderate, low
+  code                String
+  message             String    @db.Text
+  recommendation      String?   @db.Text
+
+  // Related Drug (if drug-drug interaction)
+  interactingDrugName String?
+  interactingNdc      String?
+
+  // Override Info
+  isOverridden        Boolean   @default(false)
+  overriddenById      String?
+  overriddenAt        DateTime?
+  overrideReason      String?
+  overrideCode        String?   // Professional service code
+
+  // Status
+  isAcknowledged      Boolean   @default(false)
+  acknowledgedById    String?
+  acknowledgedAt      DateTime?
+
+  createdAt           DateTime  @default(now())
+
+  prescription        Prescription @relation(fields: [prescriptionId], references: [id])
+  overriddenBy        PharmacyStaff? @relation("DUROverrides", fields: [overriddenById], references: [id])
+  acknowledgedBy      PharmacyStaff? @relation("DURAcknowledged", fields: [acknowledgedById], references: [id])
+
+  @@index([prescriptionId])
+  @@index([alertType])
+  @@index([severity])
+  @@index([isOverridden])
+}
+
+// Pickup Session (group multiple Rx for one pickup event)
+model PickupSession {
+  id                  String    @id @default(cuid())
+
+  // Patient
+  patientId           String
+
+  // Session Type
+  sessionType         PickupSessionType @default(RETAIL)
+  status              PickupSessionStatus @default(IN_PROGRESS)
+
+  // Patient Verification
+  patientVerified     Boolean   @default(false)
+  verificationMethod  String?   // DOB, ID, photo
+
+  // ID Verification (for controlled substances)
+  idVerified          Boolean   @default(false)
+  idType              IDVerificationType?
+  idNumber            String?   // Last 4 only
+  idState             String?
+  idExpiration        DateTime?
+
+  // Signature
+  signatureCaptured   Boolean   @default(false)
+  signatureData       String?   @db.LongText  // Base64 encoded
+  signatureTimestamp  DateTime?
+  signatureReason     String?   // pickup, counseling_waiver, hipaa, controlled
+
+  // Counseling
+  counselingOffered   Boolean   @default(false)
+  counselingAccepted  Boolean   @default(false)
+  counselingWaived    Boolean   @default(false)
+  counselingNotes     String?   @db.Text
+
+  // Payment
+  totalAmount         Float     @default(0)
+  amountPaid          Float     @default(0)
+  paymentMethod       String?
+  paymentReference    String?
+
+  // Staff
+  startedById         String?
+  completedById       String?
+
+  // Timestamps
+  startedAt           DateTime  @default(now())
+  completedAt         DateTime?
+
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  patient             Patient   @relation(fields: [patientId], references: [id])
+  startedBy           PharmacyStaff? @relation("PickupsStarted", fields: [startedById], references: [id])
+  completedBy         PharmacyStaff? @relation("PickupsCompleted", fields: [completedById], references: [id])
+  fills               PrescriptionFill[]
+
+  @@index([patientId])
+  @@index([status])
+  @@index([startedAt])
 }

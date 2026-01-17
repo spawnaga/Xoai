@@ -8,6 +8,7 @@ import { fhirRouter } from './routers/fhir';
 import { prescriptionRouter } from './routers/prescription';
 import { userRouter } from './routers/user';
 import { pharmacyRouter } from './routers/pharmacy';
+import { pharmacyWorkflowRouter } from './routers/pharmacy-workflow';
 
 /**
  * Main application router
@@ -22,6 +23,7 @@ import { pharmacyRouter } from './routers/pharmacy';
  * - fhir: FHIR R4 interoperability
  * - user: User management and authentication
  * - pharmacy: Pharmacy operations (staff, intake, PDMP, immunizations, inventory, will-call)
+ * - pharmacyWorkflow: Retail dispensing workflow (queue, dataEntry, claim, fill, verify, dispense)
  */
 export const appRouter = router({
   // Clinical routers
@@ -39,6 +41,9 @@ export const appRouter = router({
 
   // Pharmacy operations
   pharmacy: pharmacyRouter,
+
+  // Retail pharmacy dispensing workflow
+  pharmacyWorkflow: pharmacyWorkflowRouter,
 });
 
 export type AppRouter = typeof appRouter;

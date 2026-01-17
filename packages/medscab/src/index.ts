@@ -648,8 +648,141 @@ export {
   getImmunizationSummary,
 } from './immunization';
 
-// Prescriber Communication
+// Prescription Workflow (Dispensing)
 export type {
+  PrescriptionWorkflowState,
+  WorkflowPriority as DispensingWorkflowPriority,
+  PrescriptionWorkflowItem,
+  WorkflowStateChange as PrescriptionStateChange,
+  WorkflowQueueSummary as DispensingQueueSummary,
+  StateTransitionResult,
+} from './prescription-workflow';
+
+export {
+  WORKFLOW_STATE_DISPLAY,
+  PRIORITY_DISPLAY,
+  PRIORITY_ORDER,
+  VALID_STATE_TRANSITIONS,
+  TERMINAL_STATES,
+  PHARMACIST_REQUIRED_STATES,
+  TECH_ACCESSIBLE_STATES,
+  isValidStateTransition,
+  getValidNextStates,
+  isTerminalState,
+  requiresPharmacist,
+  isTechAccessible,
+  validateStateTransition,
+  createStateChange,
+  calculateQueueSummary as calculateDispensingQueueSummary,
+  sortWorkflowItems as sortDispensingWorkflowItems,
+  filterByState as filterDispensingByState,
+  filterByAssignee as filterDispensingByAssignee,
+  getExpectedNextState,
+  calculatePromiseTime,
+  WorkflowStateSchema,
+  WorkflowPrioritySchema,
+  StateTransitionInputSchema,
+  WorkflowItemFilterSchema,
+} from './prescription-workflow';
+
+// Data Entry
+export type {
+  DataEntrySession,
+  DataEntryStatus,
+  DataEntryError,
+  DataEntryWarning,
+  SigComponents,
+  DataEntryInput,
+  DataEntryValidationResult,
+  DrugSearchResult as DataEntryDrugSearchResult,
+  DrugSearchParams as DataEntryDrugSearchParams,
+  PrescriberSearchResult,
+  PrescriberSearchParams,
+} from './data-entry';
+
+export {
+  DAW_CODES,
+  SIG_COMPONENTS,
+  buildSig,
+  validateDataEntry,
+  formatNdcDisplay,
+  normalizeNdc,
+  isValidNdc,
+  isValidNpi,
+  isValidDeaNumber,
+  calculateDaysSupply,
+  frequencyToDosesPerDay,
+  DataEntryInputSchema,
+  SigComponentsSchema,
+  DrugSearchParamsSchema,
+  PrescriberSearchParamsSchema,
+} from './data-entry';
+
+// Claim Adjudication
+export type {
+  ClaimAdjudicationSession,
+  ClaimAdjudicationStatus,
+  ClaimAttempt,
+  ClaimResolution,
+  ClaimResolutionAction,
+  RejectCodeResolution,
+  OverrideCode,
+  ClaimSubmissionResult,
+  EligibleRefillInfo,
+  CashPriceCalculation,
+  PricingComparison,
+  PriorAuthRequest,
+  PriorAuthStatus,
+} from './claim-adjudication';
+
+export {
+  OVERRIDE_CODES,
+  getRejectCodeResolution,
+  submitClaimForPrescription,
+  resubmitWithOverride,
+  calculateEligibleRefillDate,
+  calculateCashPrice,
+  comparePricingOptions,
+  isPriorAuthValid,
+  getDaysUntilPAExpiration,
+  ClaimAdjudicationStatusSchema,
+  ClaimResolutionActionSchema,
+  OverrideSubmissionSchema,
+  CashConversionSchema,
+  PriorAuthRequestSchema,
+} from './claim-adjudication';
+
+// Verification Workflow
+export type {
+  VerificationSession,
+  VerificationSessionStatus,
+  VerificationDecision,
+  VerificationChecklist,
+  DUROverrideRecord,
+  ChecklistValidation,
+  BarcodeParseResult,
+  NdcVerificationResult,
+  DurReviewStatus,
+  VerificationValidation,
+} from './verification-workflow';
+
+export {
+  DUR_OVERRIDE_CODES,
+  createVerificationChecklist,
+  isChecklistComplete,
+  parseNdcFromBarcode,
+  verifyNdcMatch,
+  createDurOverride,
+  checkDurAlertsResolved,
+  validateVerificationComplete,
+  completeVerification,
+  VerificationChecklistSchema,
+  DurOverrideInputSchema,
+  VerificationDecisionSchema,
+  CompleteVerificationSchema,
+} from './verification-workflow';
+
+// Prescriber Communication
   PrescriberMessageType,
   CommunicationChannel,
   MessageStatus,
