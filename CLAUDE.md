@@ -106,7 +106,7 @@ Start services: `docker-compose up -d`
 
 ## MedsCab Pharmacy Package
 
-> **Package:** `packages/medscab` | **Tests:** 266 passing | **Status:** ✅ Complete
+> **Package:** `packages/medscab` | **Tests:** 270+ passing | **Status:** ✅ Complete
 
 ### Modules Implemented
 
@@ -118,6 +118,10 @@ Start services: `docker-compose up -d`
 | **Workflow** | Prescription queue | State machine transitions, queue priorities, notifications, will-call management |
 | **LTC Facility** | Long-term care | Hospice comfort kits, MAR generation, delivery scheduling, emergency kit tracking |
 | **Fill** | Prescription filling | Fill validation, refill logic, DAW codes, auxiliary labels, pharmacist verification |
+| **Prescription Workflow** | Dispensing orchestration | 15-state workflow, promise time calculation, queue management |
+| **Data Entry** | Rx validation | SIG builder, NDC/NPI/DEA validation, DAW codes, days supply calculation |
+| **Claim Adjudication** | Reject resolution | Override codes, refill date calculation, cash pricing, prior auth validation |
+| **Verification** | Pharmacist check | Checklist system, barcode parsing, NDC matching, DUR override |
 
 ### Key Types Exported
 
@@ -139,6 +143,18 @@ FacilityResident, HospiceAdmission, DeliverySchedule, EmergencyKit, MARRecord
 
 // Fill
 Fill, FillValidation, AuxiliaryLabel, Prescription
+
+// Prescription Workflow (New)
+PrescriptionWorkflowState, WorkflowPriority, StateTransitionResult
+
+// Data Entry (New)
+DAWCode, SigComponents, DataEntryInput, DataEntryValidationResult
+
+// Claim Adjudication (New)
+OverrideCode, RejectCodeResolution, RefillEligibility, CashPriceResult, PriorAuthRequest
+
+// Verification Workflow (New)
+VerificationChecklist, ChecklistItem, DURAlert, BarcodeParseResult, VerificationResult
 ```
 
 ### Usage Example
@@ -171,6 +187,244 @@ const mar = generateMAR(resident, medications, startDate, 7);
 // Create new fill record
 const fill = createFill(prescription, fillData);
 ```
+
+---
+
+## Retail Pharmacy Dispensing Workflow
+
+> **Package Extensions:** `packages/medscab` | **New Tests:** 4 test files | **Status:** ✅ Complete (January 2026)
+
+### Workflow Overview
+
+Complete retail pharmacy dispensing workflow implementation: **Intake → Data Entry → Claim → Fill → Verify → Dispense**
+
+```
+┌──────────────────────────────────────────────────────────────────────────────┐
+│                     PRESCRIPTION WORKFLOW STATE MACHINE                       │
+├──────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│  INTAKE ──► DATA_ENTRY ──► INSURANCE_PENDING ──► DUR_REVIEW ──► FILLING     │
+│     │            │                  │                 │             │        │
+│     │            │                  │                 │             ▼        │
+│     │            │                  ▼                 │       VERIFICATION   │
+│     │            │             CASH_PRICING          │             │        │
+│     │            │                  │                 │             ▼        │
+│     │            ▼                  ▼                 │          READY       │
+│     │        REJECTED          PATIENT_HOLD ◄────────┘             │        │
+│     │            │                  │                              ▼        │
+│     ▼            ▼                  │                            SOLD       │
+│  CANCELLED   TRANSFERRED            │                              │        │
+│                                     ▼                              ▼        │
+│                                RETURNED                        COMPLETED     │
+│                                                                              │
+└──────────────────────────────────────────────────────────────────────────────┘
+```
+
+### Workflow States (15 States)
+
+| State | Description | Next States | Requires Pharmacist |
+|-------|-------------|-------------|---------------------|
+| `INTAKE` | Initial prescription received | DATA_ENTRY, CANCELLED | No |
+| `DATA_ENTRY` | Prescription details being entered | INSURANCE_PENDING, CASH_PRICING, REJECTED | No |
+| `INSURANCE_PENDING` | Claim submitted to PBM | DUR_REVIEW, FILLING, PATIENT_HOLD, CASH_PRICING | No |
+| `CASH_PRICING` | Cash price calculated for patient | FILLING, PATIENT_HOLD, CANCELLED | No |
+| `DUR_REVIEW` | Drug utilization review alerts | FILLING, PATIENT_HOLD, CANCELLED | **Yes** |
+| `FILLING` | Medication being dispensed | VERIFICATION | No |
+| `VERIFICATION` | Pharmacist final check | READY, DATA_ENTRY | **Yes** |
+| `READY` | Ready for patient pickup | SOLD, RETURNED | No |
+| `SOLD` | Dispensed to patient | COMPLETED | No |
+| `COMPLETED` | Transaction complete | (terminal) | No |
+| `REJECTED` | Prescription rejected | CANCELLED, TRANSFERRED | **Yes** |
+| `PATIENT_HOLD` | Waiting for patient decision | FILLING, CANCELLED, TRANSFERRED | No |
+| `CANCELLED` | Prescription cancelled | (terminal) | No |
+| `TRANSFERRED` | Transferred to another pharmacy | (terminal) | **Yes** |
+| `RETURNED` | Patient returned to stock | COMPLETED | No |
+
+### New Domain Logic Modules
+
+**Directory:** `packages/medscab/src/`
+
+| File | Purpose | Key Exports |
+|------|---------|-------------|
+| `prescription-workflow.ts` | Central workflow orchestration | `validateStateTransition()`, `getNextStates()`, `calculatePromiseTime()`, `isTerminalState()`, `createQueueSummary()`, `sortQueueItems()` |
+| `data-entry.ts` | Data entry validation | `DAW_CODES`, `SIG_COMPONENTS`, `buildSig()`, `validateDataEntry()`, `formatNdcDisplay()`, `normalizeNdc()`, `isValidNdc()`, `isValidNpi()`, `isValidDeaNumber()`, `calculateDaysSupply()`, `frequencyToDosesPerDay()` |
+| `claim-adjudication.ts` | Insurance claim workflow | `OVERRIDE_CODES`, `getRejectCodeResolution()`, `calculateEligibleRefillDate()`, `calculateCashPrice()`, `comparePricingOptions()`, `isPriorAuthValid()`, `getDaysUntilPAExpiration()` |
+| `verification-workflow.ts` | Pharmacist verification | `createVerificationChecklist()`, `validateChecklist()`, `parseNdcFromBarcode()`, `verifyNdcMatch()`, `overrideDurAlert()`, `completeVerification()` |
+
+### Key Types & Constants
+
+```typescript
+// Prescription Workflow
+type WorkflowState = 'INTAKE' | 'DATA_ENTRY' | 'INSURANCE_PENDING' | 'CASH_PRICING'
+  | 'DUR_REVIEW' | 'FILLING' | 'VERIFICATION' | 'READY' | 'SOLD' | 'COMPLETED'
+  | 'REJECTED' | 'PATIENT_HOLD' | 'CANCELLED' | 'TRANSFERRED' | 'RETURNED';
+
+type WorkflowPriority = 'STAT' | 'URGENT' | 'NORMAL' | 'LOW';
+
+// Data Entry
+type DAWCode = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9;
+
+interface SigComponents {
+  action: string;      // TAKE, APPLY, INJECT, etc.
+  quantity?: string;   // 1, 2, 0.5, etc.
+  form?: string;       // TAB, CAP, ML, etc.
+  route: string;       // PO, TOP, SC, etc.
+  frequency: string;   // QD, BID, TID, PRN, etc.
+  timing?: string;     // WF (with food), AC (before meals), HS (at bedtime)
+  prnReason?: string;  // PAIN, NAUSEA, etc.
+  duration?: string;   // X7D (for 7 days), etc.
+  customDose?: string; // For non-standard doses
+}
+
+// Claim Adjudication
+interface OverrideCode {
+  code: string;
+  description: string;
+  requiresDocumentation: boolean;
+}
+
+// DUR Override codes: M0 (Prescriber Approval), P0 (Patient Informed), 1A-6A (Clinical Override)
+// Early Refill Override codes: VS (Vacation Supply), LT (Lost/Theft), ER (Emergency)
+// Quantity Override codes: QL (Quantity Limit Override)
+
+// Reject Code Resolutions (NCPDP standard codes)
+// 7: Member ID Invalid
+// 65: Patient Not Covered
+// 70: Not Covered (Drug not on formulary)
+// 75: Prior Auth Required
+// 76: Plan Limitations Exceeded
+// 79: Refill Too Soon
+// 88: DUR Reject
+
+// Verification Workflow
+interface VerificationChecklist {
+  items: ChecklistItem[];
+  durAlerts: DURAlert[];
+  ndcVerified: boolean;
+  quantityVerified: boolean;
+  labelVerified: boolean;
+}
+
+type BarcodeFormat = 'UPC-A' | 'GS1-DataMatrix' | 'NDC-HRI' | 'UNKNOWN';
+```
+
+### NCPDP Reject Code Resolution
+
+| Code | Description | Resolution Steps | Can Override | Requires Pharmacist |
+|------|-------------|------------------|--------------|---------------------|
+| 7 | Member ID Invalid | Verify member ID, check plan records | No | No |
+| 65 | Patient Not Covered | Verify eligibility dates, check for new plan | No | No |
+| 70 | Not Covered | Check formulary, request exception, offer cash | No | Yes |
+| 75 | Prior Auth Required | Submit PA request to PBM, check existing PA | Yes | Yes |
+| 76 | Plan Limitations | Verify quantity/days supply, submit override | Yes | No |
+| 79 | Refill Too Soon | Calculate eligible date, vacation supply override | Yes | No |
+| 88 | DUR Reject | Review interaction, prescriber contact, override | Yes | Yes |
+
+### UI Pages Implemented
+
+| Route | Page | Description | RBAC |
+|-------|------|-------------|------|
+| `/dashboard/pharmacy` | Pharmacy Hub | Queue summary, navigation, quick actions | Tech+ |
+| `/dashboard/pharmacy/intake` | Intake Queue | eRx/Fax/Phone channels, triage | Tech+ |
+| `/dashboard/pharmacy/data-entry` | Data Entry | Drug search, prescriber lookup, SIG builder | Tech+ |
+| `/dashboard/pharmacy/claim` | Claims Workstation | Reject resolution, override submission, cash pricing | Tech+ |
+| `/dashboard/pharmacy/fill` | Fill Station | NDC scan, label print, auxiliary labels | Tech+ |
+| `/dashboard/pharmacy/verify` | Verification | DUR review, checklist, approve/reject | **Pharmacist only** |
+| `/dashboard/pharmacy/pickup` | Pickup/Dispense | Patient search, ID verify, signature capture | Tech+ |
+| `/dashboard/pharmacy/will-call` | Will-Call | Bin management, patient lookup | Tech+ |
+| `/dashboard/pharmacy/inventory` | Inventory | Stock management, NDC lookup | Tech+ |
+| `/dashboard/pharmacy/pdmp` | PDMP | Prescription drug monitoring (placeholder) | Pharmacist+ |
+| `/dashboard/pharmacy/immunizations` | Immunizations | Vaccine administration (placeholder) | Pharmacist+ |
+| `/dashboard/pharmacy/transfers` | Transfers | Rx transfer in/out (placeholder) | Tech+ |
+| `/dashboard/pharmacy/staff` | Staff | Pharmacist/tech assignments (placeholder) | Manager+ |
+| `/dashboard/pharmacy/standing-orders` | Standing Orders | Vaccine protocols (placeholder) | Pharmacist+ |
+
+### Keyboard Shortcuts
+
+| Key | Action | Context |
+|-----|--------|---------|
+| F1 | Help / Patient Search | Global |
+| F2 | Accept / Approve | Intake, Verify |
+| F3 | Triage / Next Item | Queue pages |
+| F4 | Override DUR | Verify (pharmacist) |
+| F5 | Resubmit / Refresh | Claims |
+| F6 | Scan Barcode | Fill, Verify |
+| F7 | Capture Signature | Pickup |
+| F8 | Print Label | Fill |
+| F9 | Complete Fill | Fill |
+| F10 | Submit Form | All forms |
+| Esc | Cancel / Back | Global |
+| Ctrl+S | Save | Global |
+| Ctrl+N | New Note | Detail views |
+
+### Test Files
+
+**Directory:** `packages/medscab/src/`
+
+| File | Coverage | Key Test Cases |
+|------|----------|----------------|
+| `prescription-workflow.test.ts` | State transitions | Valid/invalid transitions, pharmacist requirements, terminal states, queue sorting |
+| `data-entry.test.ts` | Data validation | DAW codes, SIG building, NDC/NPI/DEA validation, days supply calculation, controlled substance rules |
+| `claim-adjudication.test.ts` | Claims processing | Override codes, reject resolution, refill date calculation, cash pricing, prior auth validation |
+| `verification-workflow.test.ts` | Verification | Checklist creation/validation, barcode parsing (UPC-A, GS1), NDC matching, DUR override |
+
+### Usage Examples
+
+```typescript
+import {
+  validateStateTransition,
+  buildSig,
+  validateDataEntry,
+  getRejectCodeResolution,
+  calculateCashPrice,
+  parseNdcFromBarcode,
+  createVerificationChecklist,
+} from '@xoai/medscab';
+
+// Validate workflow state transition
+const result = validateStateTransition('FILLING', 'VERIFICATION', { isPharmacist: true });
+// result: { success: true, requiresNote: false }
+
+// Build SIG text from components
+const sig = buildSig({
+  action: 'TAKE',
+  quantity: '1',
+  form: 'TAB',
+  route: 'PO',
+  frequency: 'BID',
+  timing: 'WF',
+});
+// sig: "Take one tablet(s) by mouth twice daily with food"
+
+// Get resolution for reject code 79 (Refill Too Soon)
+const resolution = getRejectCodeResolution('79');
+// resolution: { code: '79', resolutionSteps: [...], overrideCodes: OVERRIDE_CODES.EARLY_REFILL }
+
+// Calculate cash price
+const price = calculateCashPrice(10, 5, 20, 10);
+// price: { acquisitionCost: 10, markup: 2, dispensingFee: 5, finalPrice: 17 }
+
+// Parse NDC from barcode scan
+const barcode = parseNdcFromBarcode('012345678901');
+// barcode: { success: true, ndc: '01234567890', format: 'UPC-A' }
+
+// Create verification checklist
+const checklist = createVerificationChecklist(prescription, fill);
+// checklist: { items: [...], durAlerts: [...], ndcVerified: false }
+```
+
+### Audit Logging
+
+All pharmacy workflow actions are logged to `AuditLog`:
+
+| Action | Data Logged |
+|--------|-------------|
+| State Transition | Previous state, new state, user ID, timestamp, notes |
+| DUR Override | Override code, clinical reason, pharmacist ID, patient ID |
+| Claim Submission | Claim ID, BIN/PCN, patient copay, response code |
+| Signature Capture | Pickup session ID, patient/proxy verification method |
+| Controlled Substance | DEA schedule, quantity, PDMP query status |
+| Label Print | Prescription ID, reprint flag, user ID |
 
 ---
 
