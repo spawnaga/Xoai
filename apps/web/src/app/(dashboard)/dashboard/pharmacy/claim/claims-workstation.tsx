@@ -328,7 +328,7 @@ export function ClaimsWorkstation({ stats, claims: initialClaims, userId: _userI
                       <div className="mt-3">
                         <p className="text-xs font-semibold text-red-700 mb-2">Resolution Options:</p>
                         <ul className="space-y-1">
-                          {REJECT_CODE_RESOLUTIONS[selectedClaim.rejectCode].actions.map((action, i) => (
+                          {REJECT_CODE_RESOLUTIONS[selectedClaim.rejectCode]?.actions.map((action, i) => (
                             <li key={i} className="text-xs text-red-800 flex items-start gap-2">
                               <span className="text-red-400 mt-0.5">•</span>
                               {action}

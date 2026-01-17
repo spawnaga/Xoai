@@ -84,7 +84,7 @@ describe('API Context', () => {
           email: 'admin@hospital.com',
           role: 'ADMIN',
         },
-        expires: new Date(),
+        expires: new Date().toISOString(),
       };
 
       expect(sessionWithName.user.name).toBe('Jane Nurse');

@@ -306,7 +306,7 @@ export type {
   AIFieldResult,
   AIInterpretation,
   FieldEntryStatus,
-  DataEntrySession,
+  DataEntrySession as AIDataEntrySession,
   DataEntryAuditEntry,
   OCRRequest,
   OCRResult,
@@ -342,7 +342,7 @@ export {
   calculateAIAccuracy,
   AIFieldResultSchema,
   AIInterpretationSchema,
-  DataEntrySessionSchema,
+  DataEntrySessionSchema as AIDataEntrySessionSchema,
 } from './ai-entry';
 
 // Prescription Intake
@@ -701,7 +701,7 @@ export type {
 } from './data-entry';
 
 export {
-  DAW_CODES,
+  DAW_CODES as DataEntryDAWCodes,
   SIG_COMPONENTS,
   buildSig,
   validateDataEntry,
@@ -714,7 +714,7 @@ export {
   frequencyToDosesPerDay,
   DataEntryInputSchema,
   SigComponentsSchema,
-  DrugSearchParamsSchema,
+  DrugSearchParamsSchema as DataEntryDrugSearchParamsSchema,
   PrescriberSearchParamsSchema,
 } from './data-entry';
 
@@ -731,7 +731,7 @@ export type {
   EligibleRefillInfo,
   CashPriceCalculation,
   PricingComparison,
-  PriorAuthRequest,
+  PriorAuthRequest as ClaimPriorAuthRequest,
   PriorAuthStatus,
 } from './claim-adjudication';
 
@@ -749,7 +749,7 @@ export {
   ClaimResolutionActionSchema,
   OverrideSubmissionSchema,
   CashConversionSchema,
-  PriorAuthRequestSchema,
+  PriorAuthRequestSchema as ClaimPriorAuthRequestSchema,
 } from './claim-adjudication';
 
 // Verification Workflow
@@ -757,7 +757,7 @@ export type {
   VerificationSession,
   VerificationSessionStatus,
   VerificationDecision,
-  VerificationChecklist,
+  VerificationChecklist as VerificationWorkflowChecklist,
   DUROverrideRecord,
   ChecklistValidation,
   BarcodeParseResult,
@@ -776,13 +776,14 @@ export {
   checkDurAlertsResolved,
   validateVerificationComplete,
   completeVerification,
-  VerificationChecklistSchema,
+  VerificationChecklistSchema as VerificationWorkflowChecklistSchema,
   DurOverrideInputSchema,
   VerificationDecisionSchema,
   CompleteVerificationSchema,
 } from './verification-workflow';
 
 // Prescriber Communication
+export type {
   PrescriberMessageType,
   CommunicationChannel,
   MessageStatus,
@@ -795,7 +796,7 @@ export {
   PrescriberMessage,
   MessageAuditEntry,
   RenewalRequest,
-  PriorAuthRequest,
+  PriorAuthRequest as PrescriberPriorAuthRequest,
   ClarificationRequest,
   TherapyChangeRequest,
   MessageTemplate,

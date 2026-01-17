@@ -492,7 +492,7 @@ export const pharmacyRouter = router({
             visPublicationDate: input.visPublicationDate,
             visGivenDate: input.visGivenDate,
             screeningCompleted: input.screeningCompleted,
-            screeningQuestions: input.screeningQuestions,
+            screeningQuestions: input.screeningQuestions as any,
           },
         });
 

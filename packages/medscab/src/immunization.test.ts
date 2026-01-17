@@ -694,9 +694,9 @@ describe('Immunization Module', () => {
       const summary = getImmunizationSummary(records);
 
       expect(summary['141']).toBeDefined();
-      expect(summary['141'].doses).toBe(2);
+      expect(summary['141']?.doses).toBe(2);
       expect(summary['208']).toBeDefined();
-      expect(summary['208'].doses).toBe(1);
+      expect(summary['208']?.doses).toBe(1);
     });
 
     it('should exclude voided records from summary', () => {
@@ -707,7 +707,7 @@ describe('Immunization Module', () => {
 
       const summary = getImmunizationSummary(records);
 
-      expect(summary['141'].doses).toBe(1);
+      expect(summary['141']?.doses).toBe(1);
     });
   });
 

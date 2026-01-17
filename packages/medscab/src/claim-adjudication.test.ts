@@ -14,24 +14,24 @@ describe('Claim Adjudication Module', () => {
   describe('OVERRIDE_CODES', () => {
     it('should define DUR override codes', () => {
       expect(OVERRIDE_CODES.DUR).toBeDefined();
-      expect(OVERRIDE_CODES.DUR.length).toBeGreaterThan(0);
+      expect(OVERRIDE_CODES.DUR?.length).toBeGreaterThan(0);
     });
 
     it('should define early refill override codes', () => {
       expect(OVERRIDE_CODES.EARLY_REFILL).toBeDefined();
-      expect(OVERRIDE_CODES.EARLY_REFILL.find(o => o.code === 'VS')).toBeDefined(); // Vacation supply
+      expect(OVERRIDE_CODES.EARLY_REFILL?.find(o => o.code === 'VS')).toBeDefined(); // Vacation supply
     });
 
     it('should define quantity limit override codes', () => {
       expect(OVERRIDE_CODES.QUANTITY).toBeDefined();
-      expect(OVERRIDE_CODES.QUANTITY.find(o => o.code === 'QL')).toBeDefined();
+      expect(OVERRIDE_CODES.QUANTITY?.find(o => o.code === 'QL')).toBeDefined();
     });
 
     it('should have documentation flags for override codes', () => {
-      const durOverride = OVERRIDE_CODES.DUR.find(o => o.code === 'M0');
+      const durOverride = OVERRIDE_CODES.DUR?.find(o => o.code === 'M0');
       expect(durOverride?.requiresDocumentation).toBe(true);
 
-      const vacationOverride = OVERRIDE_CODES.EARLY_REFILL.find(o => o.code === 'VS');
+      const vacationOverride = OVERRIDE_CODES.EARLY_REFILL?.find(o => o.code === 'VS');
       expect(vacationOverride?.requiresDocumentation).toBe(false);
     });
   });

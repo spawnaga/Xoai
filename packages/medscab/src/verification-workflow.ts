@@ -659,6 +659,6 @@ export const CompleteVerificationSchema = z.object({
   notes: z.string().optional(),
   rejectionReason: z.string().optional(),
 }).refine(
-  data => data.decision !== 'rejected' || data.rejectionReason,
+  (data): boolean => data.decision !== 'rejected' || !!data.rejectionReason,
   { message: 'Rejection reason is required when rejecting' }
 );

@@ -243,8 +243,8 @@ export const encounterRouter = router({
 
       return {
         total,
-        byStatus: byStatus.map((s) => ({ status: s.status, _count: s._count })),
-        byType: byType.map((t) => ({ type: t.type, _count: t._count })),
+        byStatus: byStatus.map((s: { status: EncounterStatus; _count: number }) => ({ status: s.status, _count: s._count })),
+        byType: byType.map((t: { type: EncounterType; _count: number }) => ({ type: t.type, _count: t._count })),
       };
     }),
 });

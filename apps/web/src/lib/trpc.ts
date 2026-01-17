@@ -7,3 +7,4 @@ import type { AppRouter } from '@xoai/api';
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const trpc: ReturnType<typeof createTRPCReact<AppRouter>> = createTRPCReact<AppRouter>();
+export const api: typeof trpc = trpc;

@@ -358,7 +358,7 @@ export const fhirRouter = router({
             resourceType: 'Bundle',
             type: 'searchset',
             total: patients.length,
-            entry: patients.map((p) => ({
+            entry: patients.map((p: { id: string; mrn: string; firstName: string; lastName: string; gender: string; dateOfBirth: Date }) => ({
               resource: {
                 resourceType: 'Patient',
                 id: p.id,

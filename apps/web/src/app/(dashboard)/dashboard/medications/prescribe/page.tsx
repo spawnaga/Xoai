@@ -100,7 +100,7 @@ export default async function PrescribePage() {
               required
             >
               <option value="">Select a patient...</option>
-              {patients.map((patient) => (
+              {patients.map((patient: { id: string; firstName: string; lastName: string; mrn: string }) => (
                 <option key={patient.id} value={patient.id}>
                   {patient.lastName}, {patient.firstName} (MRN: {patient.mrn})
                 </option>

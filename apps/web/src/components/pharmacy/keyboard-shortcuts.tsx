@@ -52,7 +52,7 @@ export function KeyboardShortcuts({ context = 'general', isPharmacist = false }:
     );
   }
 
-  const relevantShortcuts = contextShortcuts[context] || contextShortcuts.general;
+  const relevantShortcuts = (contextShortcuts[context] || contextShortcuts.general)!;
   const allShortcuts = Object.entries(PHARMACY_SHORTCUTS);
 
   return (

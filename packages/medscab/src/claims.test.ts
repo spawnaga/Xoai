@@ -84,19 +84,19 @@ describe('Claims Module', () => {
       const result = parseRejectCodes(['70', '75', '79']);
 
       expect(result).toHaveLength(3);
-      expect(result[0].code).toBe('70');
-      expect(result[1].code).toBe('75');
-      expect(result[2].code).toBe('79');
+      expect(result[0]?.code).toBe('70');
+      expect(result[1]?.code).toBe('75');
+      expect(result[2]?.code).toBe('79');
     });
 
     it('should handle unknown codes gracefully', () => {
       const result = parseRejectCodes(['70', 'UNKNOWN']);
 
       expect(result).toHaveLength(2);
-      expect(result[0].code).toBe('70');
-      expect(result[1].code).toBe('UNKNOWN');
-      expect(result[1].description).toContain('Unknown');
-      expect(result[1].category).toBe('other');
+      expect(result[0]?.code).toBe('70');
+      expect(result[1]?.code).toBe('UNKNOWN');
+      expect(result[1]?.description).toContain('Unknown');
+      expect(result[1]?.category).toBe('other');
     });
   });
 

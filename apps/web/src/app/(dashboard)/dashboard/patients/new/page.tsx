@@ -11,10 +11,10 @@ export default function NewPatientPage() {
   const [error, setError] = useState<string | null>(null);
 
   const createPatient = api.patient.create.useMutation({
-    onSuccess: (patient) => {
+    onSuccess: (patient: unknown) => {
       router.push(`/dashboard/patients`);
     },
-    onError: (err) => {
+    onError: (err: { message: string }) => {
       setError(err.message);
       setIsSubmitting(false);
     },

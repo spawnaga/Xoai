@@ -170,7 +170,7 @@ describe('Prescriber Communication Module', () => {
       expect(message.responseReceived).toBe(false);
       expect(message.retryCount).toBe(0);
       expect(message.auditTrail.length).toBe(1);
-      expect(message.auditTrail[0].action).toBe('created');
+      expect(message.auditTrail[0]?.action).toBe('created');
     });
 
     it('should set default priority to routine', () => {
@@ -278,8 +278,8 @@ describe('Prescriber Communication Module', () => {
 
       expect(updated.status).toBe('pending_send');
       expect(updated.auditTrail.length).toBe(2);
-      expect(updated.auditTrail[1].previousStatus).toBe('draft');
-      expect(updated.auditTrail[1].newStatus).toBe('pending_send');
+      expect(updated.auditTrail[1]?.previousStatus).toBe('draft');
+      expect(updated.auditTrail[1]?.newStatus).toBe('pending_send');
     });
 
     it('should mark message as sent', () => {
@@ -408,7 +408,7 @@ describe('Prescriber Communication Module', () => {
       const cancelled = cancelMessage(message, 'user_001', 'Patient cancelled therapy');
 
       expect(cancelled.status).toBe('cancelled');
-      expect(cancelled.auditTrail[cancelled.auditTrail.length - 1].details).toBe(
+      expect(cancelled.auditTrail[cancelled.auditTrail.length - 1]?.details).toBe(
         'Patient cancelled therapy'
       );
     });
@@ -738,7 +738,7 @@ describe('Prescriber Communication Module', () => {
       const expired = getExpiredMessages(messages);
 
       expect(expired.length).toBe(1);
-      expect(expired[0].id).toBe('msg2');
+      expect(expired[0]?.id).toBe('msg2');
     });
 
     it('should get messages by prescriber NPI', () => {

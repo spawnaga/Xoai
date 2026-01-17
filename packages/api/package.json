@@ -14,10 +14,12 @@
     "@xoai/healthcare-fhir": "workspace:*",
     "@xoai/healthcare-hl7": "workspace:*",
     "@xoai/medscab": "workspace:*",
+    "bcryptjs": "^2.4.3",
     "superjson": "^2.2.0",
     "zod": "^3.22.0"
   },
   "devDependencies": {
+    "@types/bcryptjs": "^2.4.6",
     "@xoai/typescript-config": "workspace:*",
     "typescript": "^5.3.0"
   }

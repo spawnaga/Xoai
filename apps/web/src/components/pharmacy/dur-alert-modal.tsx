@@ -137,13 +137,16 @@ export function DurAlertModal({
   };
 
   const handleNotesChange = (alertId: string, notes: string) => {
-    setOverrides(prev => ({
-      ...prev,
-      [alertId]: {
-        ...prev[alertId],
-        notes,
-      },
-    }));
+    setOverrides(prev => {
+      const existing = prev[alertId] || { code: '', reason: '', notes: '' };
+      return {
+        ...prev,
+        [alertId]: {
+          ...existing,
+          notes,
+        },
+      };
+    });
   };
 
   const toggleExpanded = (alertId: string) => {
@@ -160,7 +163,7 @@ export function DurAlertModal({
 
   const requiresOverride = alerts.filter(a => a.overrideRequired);
   const allOverridesProvided = requiresOverride.every(
-    alert => overrides[alert.id]?.code && overrides[alert.id]?.code.length > 0
+    alert => overrides[alert.id]?.code && (overrides[alert.id]?.code.length ?? 0) > 0
   );
 
   const handleSubmit = () => {
@@ -168,9 +171,9 @@ export function DurAlertModal({
       .filter(alert => overrides[alert.id]?.code)
       .map(alert => ({
         alertId: alert.id,
-        code: overrides[alert.id].code,
-        reason: overrides[alert.id].reason,
-        pharmacistNotes: overrides[alert.id].notes || undefined,
+        code: overrides[alert.id]?.code || '',
+        reason: overrides[alert.id]?.reason || '',
+        pharmacistNotes: overrides[alert.id]?.notes || undefined,
       }));
 
     onOverride(durOverrides);

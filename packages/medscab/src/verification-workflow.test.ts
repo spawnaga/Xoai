@@ -17,15 +17,15 @@ import {
 describe('Verification Workflow Module', () => {
   describe('DUR_OVERRIDE_CODES', () => {
     it('should define prescriber consulted code', () => {
-      expect(DUR_OVERRIDE_CODES.PRESCRIBER_CONSULTED.code).toBe('M0');
+      expect(DUR_OVERRIDE_CODES.PRESCRIBER_CONSULTED?.code).toBe('M0');
     });
 
     it('should define patient consulted code', () => {
-      expect(DUR_OVERRIDE_CODES.PATIENT_CONSULTED.code).toBe('P0');
+      expect(DUR_OVERRIDE_CODES.PATIENT_CONSULTED?.code).toBe('P0');
     });
 
     it('should define clinical judgment code', () => {
-      expect(DUR_OVERRIDE_CODES.CLINICAL_JUDGMENT.code).toBe('5A');
+      expect(DUR_OVERRIDE_CODES.CLINICAL_JUDGMENT?.code).toBe('5A');
     });
   });
 
@@ -419,7 +419,7 @@ describe('Verification Workflow Module', () => {
     it('should complete session with rejected decision', () => {
       const session = createMockSession();
 
-      const completed = completeVerification(session, 'rejected', null, 'Wrong drug dispensed');
+      const completed = completeVerification(session, 'rejected', undefined, 'Wrong drug dispensed');
 
       expect(completed.status).toBe('rejected');
       expect(completed.decision).toBe('rejected');

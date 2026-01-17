@@ -278,7 +278,7 @@ export default async function PharmacyPage() {
       {/* Module Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         {modules.map((module) => {
-          const colors = colorClasses[module.color] || colorClasses.blue;
+          const colors = (colorClasses[module.color] || colorClasses.blue)!;
           return (
             <Link
               key={module.href}
