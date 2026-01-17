@@ -134,8 +134,9 @@ export const pharmacyRouter = router({
             details: { role: input.role },
           },
         });
-      }),
+
         return staff;
+      }),
 
     // Update staff record
     update: masterUserProcedure
@@ -167,8 +168,9 @@ export const pharmacyRouter = router({
             details: { fields: Object.keys(data) },
           },
         });
-      }),
+
         return staff;
+      }),
   }),
 
   // ============================================================================
