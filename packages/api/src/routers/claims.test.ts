@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { calculatePatientPay, parseRejectCodes, DAW_CODES } from '@xoai/medscab/claims';
+import { calculatePatientPay, parseRejectCodes, DAW_CODES } from '@xoai/medscab';
 
 describe('Claims Processing', () => {
   describe('calculatePatientPay', () => {

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { canRefill, validateFillForVerification, getRecommendedAuxiliaryLabels } from '@xoai/medscab/fill';
+import { canRefill, validateFillForVerification, getRecommendedAuxiliaryLabels } from '@xoai/medscab';
 
 describe('Fill Router', () => {
   describe('canRefill', () => {

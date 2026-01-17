@@ -3,10 +3,10 @@ import { router, pharmacistProcedure } from '../trpc';
 import {
   generateQueryId,
   createPDMPResult,
-  analyzeResults,
+  analyzePDMPResults as analyzeResults,
   type PDMPQuery,
   type PDMPPrescription,
-} from '@xoai/medscab/pdmp';
+} from '@xoai/medscab';
 
 export const pdmpRouter = router({
   query: pharmacistProcedure

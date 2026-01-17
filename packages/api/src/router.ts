@@ -17,6 +17,8 @@ import { dispenseRouter } from './routers/dispense';
 import { pdmpRouter } from './routers/pdmp';
 import { dataEntryRouter } from './routers/data-entry';
 
+import { userManagementRouter } from './routers/user-management';
+
 /**
  * Main application router
  * Combines all healthcare-specific routers
@@ -29,6 +31,7 @@ import { dataEntryRouter } from './routers/data-entry';
  * - prescription: Prescription management
  * - fhir: FHIR R4 interoperability
  * - user: User management and authentication
+ * - userManagement: Master user administration
  * - pharmacy: Pharmacy operations (staff, intake, PDMP, immunizations, inventory, will-call)
  * - pharmacyWorkflow: Retail dispensing workflow (queue, dataEntry, claim, fill, verify, dispense)
  * - dataEntry: Prescription data entry and validation
@@ -47,6 +50,7 @@ export const appRouter = router({
 
   // Administration
   user: userRouter,
+  userManagement: userManagementRouter,
 
   // Pharmacy operations
   pharmacy: pharmacyRouter,

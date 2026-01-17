@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { analyzeResults, calculateMME, MME_THRESHOLDS } from '@xoai/medscab/pdmp';
+import { analyzePDMPResults as analyzeResults, calculateMME, MME_THRESHOLDS } from '@xoai/medscab';
 
 describe('PDMP Router', () => {
   describe('analyzeResults', () => {

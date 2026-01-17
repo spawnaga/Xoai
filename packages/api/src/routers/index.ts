@@ -12,3 +12,4 @@ export { claimsRouter } from './claims';
 export { fillRouter } from './fill';
 export { pdmpRouter } from './pdmp';
 export { dataEntryRouter } from './data-entry';
+export { userManagementRouter } from './user-management';
