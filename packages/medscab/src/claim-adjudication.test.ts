@@ -227,7 +227,7 @@ describe('Claim Adjudication Module', () => {
 
     it('should return false for approved PA with past expiration', () => {
       const pa = createMockPriorAuth('approved');
-      pa.expirationDate = new Date(Date.now() - 1 * 24 * 60 * 60 * 1000); // 1 day ago
+      pa.expirationDate = new Date(Date.now() - 24 * 60 * 60 * 1000); // 1 day ago
 
       expect(isPriorAuthValid(pa)).toBe(false);
     });

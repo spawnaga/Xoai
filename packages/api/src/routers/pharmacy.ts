@@ -2,7 +2,6 @@ import { z } from 'zod';
 import {
   router,
   protectedProcedure,
-  pharmacistProcedure,
   pharmacistLevelProcedure,
   techLevelProcedure,
   managerProcedure,
@@ -22,7 +21,7 @@ export const pharmacyRouter = router({
   staff: router({
     // Get current staff profile
     me: protectedProcedure.query(async ({ ctx }) => {
-      const staff = await ctx.db.pharmacyStaff.findUnique({
+      return ctx.db.pharmacyStaff.findUnique({
         where: { userId: ctx.user.id },
         include: {
           user: {
@@ -42,14 +41,13 @@ export const pharmacyRouter = router({
           },
         },
       });
-      return staff;
     }),
 
     // Get staff by ID
     getById: managerProcedure
       .input(z.object({ id: z.string() }))
       .query(async ({ ctx, input }) => {
-        const staff = await ctx.db.pharmacyStaff.findUnique({
+        return ctx.db.pharmacyStaff.findUnique({
           where: { id: input.id },
           include: {
             user: {
@@ -67,10 +65,6 @@ export const pharmacyRouter = router({
           },
         });
 
-        if (!staff) {
-          throw new TRPCError({ code: 'NOT_FOUND', message: 'Staff member not found' });
-        }
-        return staff;
       }),
 
     // List all staff
@@ -140,8 +134,8 @@ export const pharmacyRouter = router({
             details: { role: input.role },
           },
         });
-        return staff;
       }),
+        return staff;
 
     // Update staff record
     update: masterUserProcedure
@@ -173,8 +167,8 @@ export const pharmacyRouter = router({
             details: { fields: Object.keys(data) },
           },
         });
-        return staff;
       }),
+        return staff;
   }),
 
   // ============================================================================
@@ -342,9 +336,6 @@ export const pharmacyRouter = router({
       .mutation(async ({ ctx, input }) => {
         const staff = await ctx.db.pharmacyStaff.findUnique({ where: { userId: ctx.user.id } });
 
-        if (!staff) {
-          throw new TRPCError({ code: 'FORBIDDEN', message: 'Must be pharmacy staff to query PDMP' });
-        }
 
         // Create PDMP query record
         const query = await ctx.db.pDMPQuery.create({
@@ -374,7 +365,7 @@ export const pharmacyRouter = router({
     history: pharmacistLevelProcedure
       .input(z.object({ patientId: z.string(), limit: z.number().min(1).max(50).default(10) }))
       .query(async ({ ctx, input }) => {
-        const queries = await ctx.db.pDMPQuery.findMany({
+        return ctx.db.pDMPQuery.findMany({
           where: { patientId: input.patientId },
           take: input.limit,
           orderBy: { queriedAt: 'desc' },
@@ -382,7 +373,6 @@ export const pharmacyRouter = router({
             queriedBy: { include: { user: { select: { firstName: true, lastName: true } } } },
           },
         });
-        return queries;
       }),
   }),
 
@@ -462,9 +452,6 @@ export const pharmacyRouter = router({
       .mutation(async ({ ctx, input }) => {
         const staff = await ctx.db.pharmacyStaff.findUnique({ where: { userId: ctx.user.id } });
 
-        if (!staff) {
-          throw new TRPCError({ code: 'FORBIDDEN', message: 'Must be pharmacy staff to administer vaccines' });
-        }
 
         // Check vaccine inventory
         const vaccine = await ctx.db.vaccineInventory.findUnique({ where: { id: input.vaccineInventoryId } });
@@ -518,7 +505,7 @@ export const pharmacyRouter = router({
     patientHistory: techLevelProcedure
       .input(z.object({ patientId: z.string() }))
       .query(async ({ ctx, input }) => {
-        const records = await ctx.db.immunizationRecord.findMany({
+        return ctx.db.immunizationRecord.findMany({
           where: { patientId: input.patientId },
           include: {
             vaccineInventory: { select: { vaccineName: true, manufacturer: true } },
@@ -526,7 +513,6 @@ export const pharmacyRouter = router({
           },
           orderBy: { administrationDate: 'desc' },
         });
-        return records;
       }),
   }),
 
@@ -667,7 +653,7 @@ export const pharmacyRouter = router({
       .query(async ({ ctx, input }) => {
         const { limit, status, patientId } = input;
 
-        const bins = await ctx.db.willCallBin.findMany({
+        return ctx.db.willCallBin.findMany({
           take: limit,
           where: {
             ...(status && { status }),
@@ -678,7 +664,6 @@ export const pharmacyRouter = router({
           },
           orderBy: { lastActivityAt: 'desc' },
         });
-        return bins;
       }),
 
     // Assign bin to patient
@@ -817,12 +802,11 @@ export const pharmacyRouter = router({
     list: pharmacistLevelProcedure
       .input(z.object({ limit: z.number().min(1).max(50).default(20), isActive: z.boolean().optional() }))
       .query(async ({ ctx, input }) => {
-        const orders = await ctx.db.standingOrder.findMany({
+        return ctx.db.standingOrder.findMany({
           take: input.limit,
           where: input.isActive !== undefined ? { isActive: input.isActive } : undefined,
           orderBy: { createdAt: 'desc' },
         });
-        return orders;
       }),
 
     // Get standing order by ID
@@ -982,7 +966,7 @@ export const pharmacyRouter = router({
         })
       )
       .query(async ({ ctx, input }) => {
-        const logs = await ctx.db.temperatureLog.findMany({
+        return ctx.db.temperatureLog.findMany({
           where: {
             storageUnitId: input.storageUnitId,
             ...(input.startDate && { recordedAt: { gte: input.startDate } }),
@@ -991,7 +975,6 @@ export const pharmacyRouter = router({
           take: input.limit,
           orderBy: { recordedAt: 'desc' },
         });
-        return logs;
       }),
   }),
 
@@ -1010,7 +993,7 @@ export const pharmacyRouter = router({
         })
       )
       .query(async ({ ctx, input }) => {
-        const transfers = await ctx.db.prescriptionTransfer.findMany({
+        return ctx.db.prescriptionTransfer.findMany({
           take: input.limit,
           where: {
             ...(input.direction && { direction: input.direction }),
@@ -1019,7 +1002,6 @@ export const pharmacyRouter = router({
           include: { patient: { select: { id: true, firstName: true, lastName: true, mrn: true } } },
           orderBy: { transferredAt: 'desc' },
         });
-        return transfers;
       }),
 
     // Initiate transfer out

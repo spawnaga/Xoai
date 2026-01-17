@@ -107,7 +107,7 @@ describe('Immunization Module', () => {
     it('should check if vaccine is beyond use date', () => {
       const vaccine = createMockVaccine({
         multiDoseVial: true,
-        beyondUseDate: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000),
+        beyondUseDate: new Date(Date.now() - 24 * 60 * 60 * 1000),
       });
 
       expect(isBeyondUseDate(vaccine)).toBe(true);
@@ -270,7 +270,7 @@ describe('Immunization Module', () => {
           quantityOnHand: 5,
           quantityAllocated: 0,
           reorderPoint: 10,
-          expirationDate: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000),
+          expirationDate: new Date(Date.now() - 24 * 60 * 60 * 1000),
         }),
       ];
 

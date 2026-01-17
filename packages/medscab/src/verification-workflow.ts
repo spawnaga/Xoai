@@ -6,7 +6,7 @@
  */
 
 import { z } from 'zod';
-import type { DURAlert, DURAlertType } from './types';
+import type { DURAlertType } from './types';
 
 // ============================================
 // VERIFICATION TYPES
@@ -211,7 +211,7 @@ export function isChecklistComplete(
 
   // Controlled substance specific checks
   if (checklist.deaScheduleVerified !== null) {
-    if (checklist.deaScheduleVerified !== true) {
+    if (!checklist.deaScheduleVerified) {
       errors.push('DEA schedule must be verified for controlled substances');
     }
     if (checklist.pdmpReviewed !== true && !options?.skipPdmp) {
