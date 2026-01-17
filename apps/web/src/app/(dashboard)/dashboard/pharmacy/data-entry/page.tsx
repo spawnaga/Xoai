@@ -14,7 +14,7 @@ export default function DataEntryPage() {
       
       <div className="grid grid-cols-3 gap-6">
         <div className="col-span-1 space-y-2">
-          {queue?.map((rx) => (
+          {queue?.map((rx: { id: string; patientName?: string; drugName?: string }) => (
             <button
               key={rx.id}
               onClick={() => setSelectedRx(rx.id)}

@@ -11,7 +11,7 @@ export default function ClaimsPage() {
       <h1 className="text-2xl font-bold">Claims & Rejections</h1>
       
       <div className="grid gap-4">
-        {claims?.map((claim) => (
+        {claims?.map((claim: { id: string }) => (
           <ClaimReviewPanel key={claim.id} claimId={claim.id} />
         ))}
         {!claims?.length && (

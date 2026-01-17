@@ -15,7 +15,7 @@ export default function VerifyPage() {
     labels: false,
   });
 
-  const fill = fills?.find((f) => f.id === selectedFill);
+  const fill = fills?.find((f: { id: string }) => f.id === selectedFill);
   const allChecked = Object.values(checklist).every(Boolean);
 
   return (
@@ -24,7 +24,7 @@ export default function VerifyPage() {
       
       <div className="grid grid-cols-3 gap-6">
         <div className="col-span-1 space-y-2">
-          {fills?.map((fill) => (
+          {fills?.map((fill: { id: string; prescription: { patient: { firstName: string; lastName: string }; id: string } }) => (
             <button
               key={fill.id}
               onClick={() => setSelectedFill(fill.id)}
