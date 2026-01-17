@@ -13,6 +13,7 @@ import { intakeRouter } from './routers/intake';
 import { fillRouter } from './routers/fill';
 import { verifyRouter } from './routers/verify';
 import { claimsRouter } from './routers/claims';
+import { dispenseRouter } from './routers/dispense';
 
 /**
  * Main application router
@@ -49,6 +50,7 @@ export const appRouter = router({
   fill: fillRouter,
   verify: verifyRouter,
   claims: claimsRouter,
+  dispense: dispenseRouter,
 
   // Retail pharmacy dispensing workflow
   pharmacyWorkflow: pharmacyWorkflowRouter,

@@ -597,6 +597,34 @@ export const prescriptionRouter = router({
     }),
 
   /**
+   * Update prescription
+   */
+  update: clinicalProcedure
+    .input(
+      z.object({
+        id: z.string(),
+        sig: z.string().optional(),
+        quantity: z.number().optional(),
+        refills: z.number().optional(),
+        dawCode: z.string().optional(),
+        substitutionAllowed: z.boolean().optional(),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      const { id, ...data } = input;
+      return ctx.db.prescription.update({ where: { id }, data });
+    }),
+
+  /**
+   * Get prescription by ID
+   */
+  getById: clinicalProcedure
+    .input(z.object({ id: z.string() }))
+    .query(async ({ ctx, input }) => {
+      return ctx.db.prescription.findUnique({ where: { id: input.id } });
+    }),
+
+  /**
    * Search prescriptions
    */
   search: clinicalProcedure
