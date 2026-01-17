@@ -145,6 +145,67 @@ const colorClasses: Record<string, { bg: string; text: string; hover: string }> 
   rose: { bg: 'bg-rose-100', text: 'text-rose-600', hover: 'hover:border-rose-300' },
 };
 
+// Workflow stages for dispensing
+const workflowStages = [
+  {
+    id: 'intake',
+    label: 'Intake',
+    href: '/dashboard/pharmacy/intake',
+    count: 12,
+    color: 'blue',
+    description: 'New prescriptions',
+  },
+  {
+    id: 'data-entry',
+    label: 'Data Entry',
+    href: '/dashboard/pharmacy/data-entry',
+    count: 8,
+    color: 'indigo',
+    description: 'Enter details',
+  },
+  {
+    id: 'insurance',
+    label: 'Insurance',
+    href: '/dashboard/pharmacy/claim',
+    count: 5,
+    color: 'purple',
+    description: 'Claims processing',
+  },
+  {
+    id: 'fill',
+    label: 'Fill',
+    href: '/dashboard/pharmacy/fill',
+    count: 15,
+    color: 'amber',
+    description: 'Product selection',
+  },
+  {
+    id: 'verify',
+    label: 'Verify',
+    href: '/dashboard/pharmacy/verify',
+    count: 6,
+    color: 'emerald',
+    description: 'RPh verification',
+  },
+  {
+    id: 'pickup',
+    label: 'Pickup',
+    href: '/dashboard/pharmacy/pickup',
+    count: 22,
+    color: 'teal',
+    description: 'Ready for patient',
+  },
+];
+
+const workflowColors: Record<string, string> = {
+  blue: 'from-blue-500 to-blue-600',
+  indigo: 'from-indigo-500 to-indigo-600',
+  purple: 'from-purple-500 to-purple-600',
+  amber: 'from-amber-500 to-amber-600',
+  emerald: 'from-emerald-500 to-emerald-600',
+  teal: 'from-teal-500 to-teal-600',
+};
+
 export default async function PharmacyPage() {
   // Server-side session check
   const session = await requireSession('/dashboard/pharmacy');
@@ -174,6 +235,44 @@ export default async function PharmacyPage() {
           </svg>
           New Prescription
         </Link>
+      </div>
+
+      {/* Dispensing Workflow Pipeline */}
+      <div className="bg-white rounded-2xl border border-slate-200 p-6">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-lg font-semibold text-slate-900">Dispensing Workflow</h2>
+          <span className="text-sm text-slate-500">
+            {workflowStages.reduce((sum, s) => sum + s.count, 0)} total in queue
+          </span>
+        </div>
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+          {workflowStages.map((stage, index) => (
+            <Link
+              key={stage.id}
+              href={stage.href}
+              className="group relative p-4 bg-slate-50 rounded-xl hover:bg-slate-100 transition-all"
+            >
+              {/* Connector arrow (hidden on first item) */}
+              {index > 0 && (
+                <div className="hidden lg:block absolute -left-3 top-1/2 -translate-y-1/2 text-slate-300">
+                  <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
+                  </svg>
+                </div>
+              )}
+              <div className="flex items-center justify-between mb-2">
+                <span className={`text-2xl font-bold bg-gradient-to-r ${workflowColors[stage.color]} bg-clip-text text-transparent`}>
+                  {stage.count}
+                </span>
+                <div className={`w-2 h-2 rounded-full bg-gradient-to-r ${workflowColors[stage.color]}`} />
+              </div>
+              <p className="text-sm font-semibold text-slate-900 group-hover:text-blue-600 transition-colors">
+                {stage.label}
+              </p>
+              <p className="text-xs text-slate-500">{stage.description}</p>
+            </Link>
+          ))}
+        </div>
       </div>
 
       {/* Module Grid */}

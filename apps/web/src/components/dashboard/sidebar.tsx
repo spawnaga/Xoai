@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { signOut } from 'next-auth/react';
@@ -33,7 +33,18 @@ const navigation = [
   { name: 'Encounters', href: '/dashboard/encounters', icon: CalendarIcon },
   { name: 'Observations', href: '/dashboard/observations', icon: ChartIcon },
   { name: 'Medications', href: '/dashboard/medications', icon: PillIcon },
+  { name: 'Pharmacy', href: '/dashboard/pharmacy', icon: PharmacyIcon },
   { name: 'FHIR Export', href: '/dashboard/fhir', icon: DocumentIcon },
+];
+
+// Pharmacy workflow navigation
+const pharmacyNav = [
+  { name: 'Intake', href: '/dashboard/pharmacy/intake' },
+  { name: 'Data Entry', href: '/dashboard/pharmacy/data-entry' },
+  { name: 'Claims', href: '/dashboard/pharmacy/claim' },
+  { name: 'Fill', href: '/dashboard/pharmacy/fill' },
+  { name: 'Verify', href: '/dashboard/pharmacy/verify' },
+  { name: 'Pickup', href: '/dashboard/pharmacy/pickup' },
 ];
 
 const secondaryNav = [
@@ -90,6 +101,14 @@ function DocumentIcon({ className = "h-5 w-5" }: { className?: string }) {
   );
 }
 
+function PharmacyIcon({ className = "h-5 w-5" }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
+    </svg>
+  );
+}
+
 function SettingsIcon({ className = "h-5 w-5" }: { className?: string }) {
   return (
     <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -128,6 +147,13 @@ export function DashboardSidebar({ user }: SidebarProps) {
   const pathname = usePathname();
 
   const isActive = (href: string) => pathname === href;
+  const isPharmacySection = pathname.startsWith('/dashboard/pharmacy');
+
+  // Auto-expand pharmacy submenu when on pharmacy pages
+  const [pharmacyExpanded, setPharmacyExpanded] = useState(isPharmacySection);
+  useEffect(() => {
+    if (isPharmacySection) setPharmacyExpanded(true);
+  }, [isPharmacySection]);
 
   const userInitial = user.name?.[0]?.toUpperCase() || user.email[0]?.toUpperCase() || 'U';
 
@@ -250,21 +276,73 @@ export function DashboardSidebar({ user }: SidebarProps) {
           <nav className="flex-1 px-4 py-6 space-y-1 overflow-y-auto">
             <p className="px-3 text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">Main</p>
             {navigation.map((item) => (
-              <Link
-                key={item.name}
-                href={item.href}
-                className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all ${
-                  isActive(item.href)
-                    ? 'bg-gradient-to-r from-blue-50 to-indigo-50 text-blue-700 shadow-sm'
-                    : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
-                }`}
-              >
-                <item.icon className={isActive(item.href) ? 'text-blue-600' : 'text-slate-400'} />
-                {item.name}
-                {isActive(item.href) && (
-                  <div className="ml-auto w-1.5 h-1.5 rounded-full bg-blue-600"></div>
+              <div key={item.name}>
+                {item.name === 'Pharmacy' ? (
+                  <>
+                    <button
+                      onClick={() => setPharmacyExpanded(!pharmacyExpanded)}
+                      className={`w-full flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all ${
+                        isPharmacySection
+                          ? 'bg-gradient-to-r from-blue-50 to-indigo-50 text-blue-700 shadow-sm'
+                          : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                      }`}
+                    >
+                      <item.icon className={isPharmacySection ? 'text-blue-600' : 'text-slate-400'} />
+                      {item.name}
+                      <svg
+                        className={`ml-auto h-4 w-4 transition-transform ${pharmacyExpanded ? 'rotate-90' : ''}`}
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                      </svg>
+                    </button>
+                    {pharmacyExpanded && (
+                      <div className="ml-4 mt-1 space-y-0.5 border-l-2 border-slate-100 pl-3">
+                        <Link
+                          href="/dashboard/pharmacy"
+                          className={`block rounded-lg px-3 py-2 text-xs font-medium transition-colors ${
+                            pathname === '/dashboard/pharmacy'
+                              ? 'text-blue-700 bg-blue-50'
+                              : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50'
+                          }`}
+                        >
+                          Overview
+                        </Link>
+                        {pharmacyNav.map((subItem) => (
+                          <Link
+                            key={subItem.name}
+                            href={subItem.href}
+                            className={`block rounded-lg px-3 py-2 text-xs font-medium transition-colors ${
+                              isActive(subItem.href)
+                                ? 'text-blue-700 bg-blue-50'
+                                : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50'
+                            }`}
+                          >
+                            {subItem.name}
+                          </Link>
+                        ))}
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <Link
+                    href={item.href}
+                    className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all ${
+                      isActive(item.href)
+                        ? 'bg-gradient-to-r from-blue-50 to-indigo-50 text-blue-700 shadow-sm'
+                        : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                    }`}
+                  >
+                    <item.icon className={isActive(item.href) ? 'text-blue-600' : 'text-slate-400'} />
+                    {item.name}
+                    {isActive(item.href) && (
+                      <div className="ml-auto w-1.5 h-1.5 rounded-full bg-blue-600"></div>
+                    )}
+                  </Link>
                 )}
-              </Link>
+              </div>
             ))}
 
             <div className="pt-6">
