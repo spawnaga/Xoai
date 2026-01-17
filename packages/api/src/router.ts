@@ -14,6 +14,8 @@ import { fillRouter } from './routers/fill';
 import { verifyRouter } from './routers/verify';
 import { claimsRouter } from './routers/claims';
 import { dispenseRouter } from './routers/dispense';
+import { pdmpRouter } from './routers/pdmp';
+import { dataEntryRouter } from './routers/data-entry';
 
 /**
  * Main application router
@@ -29,6 +31,8 @@ import { dispenseRouter } from './routers/dispense';
  * - user: User management and authentication
  * - pharmacy: Pharmacy operations (staff, intake, PDMP, immunizations, inventory, will-call)
  * - pharmacyWorkflow: Retail dispensing workflow (queue, dataEntry, claim, fill, verify, dispense)
+ * - dataEntry: Prescription data entry and validation
+ * - pdmp: PDMP queries and controlled substance monitoring
  */
 export const appRouter = router({
   // Clinical routers
@@ -51,6 +55,8 @@ export const appRouter = router({
   verify: verifyRouter,
   claims: claimsRouter,
   dispense: dispenseRouter,
+  pdmp: pdmpRouter,
+  dataEntry: dataEntryRouter,
 
   // Retail pharmacy dispensing workflow
   pharmacyWorkflow: pharmacyWorkflowRouter,

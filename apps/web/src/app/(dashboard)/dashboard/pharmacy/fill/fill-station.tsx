@@ -1,6 +1,8 @@
 'use client';
 
 import { useState, useCallback, useRef } from 'react';
+import { useRouter } from 'next/navigation';
+import { trpc } from '@/lib/trpc';
 import { QueueHeader } from '@/components/pharmacy/queue-header';
 import { BarcodeScanner } from '@/components/pharmacy/barcode-scanner';
 import { LabelPreview } from '@/components/pharmacy/label-preview';
@@ -46,9 +48,10 @@ const priorityConfig = {
 };
 
 export function FillStation({ stats, prescriptions: initialPrescriptions, userId: _userId }: FillStationProps) {
+  const router = useRouter();
   const [prescriptions, setPrescriptions] = useState(initialPrescriptions);
   const [selectedId, setSelectedId] = useState<string | null>(prescriptions[0]?.id || null);
-  const [isLoading, setIsLoading] = useState(false);
+  const [currentFillId, setCurrentFillId] = useState<string | null>(null);
   const [scannedNdc, setScannedNdc] = useState<string | null>(null);
   const [ndcVerified, setNdcVerified] = useState(false);
   const [showLabel, setShowLabel] = useState(false);
@@ -56,39 +59,102 @@ export function FillStation({ stats, prescriptions: initialPrescriptions, userId
 
   const selectedPrescription = prescriptions.find(p => p.id === selectedId);
 
-  const handleRefresh = useCallback(async () => {
-    setIsLoading(true);
-    await new Promise(resolve => setTimeout(resolve, 500));
-    setIsLoading(false);
-  }, []);
+  // tRPC mutations
+  const utils = trpc.useUtils();
 
-  const handleScan = useCallback((barcode: string, type: 'ndc' | 'rxnumber' | 'unknown') => {
+  const startFillMutation = trpc.pharmacyWorkflow.fill.start.useMutation({
+    onSuccess: (fill) => {
+      setCurrentFillId(fill.id);
+    },
+  });
+
+  const scanNdcMutation = trpc.pharmacyWorkflow.fill.scanNdc.useMutation({
+    onSuccess: () => {
+      setNdcVerified(true);
+    },
+    onError: () => {
+      setNdcVerified(false);
+    },
+  });
+
+  const completeFillMutation = trpc.pharmacyWorkflow.fill.complete.useMutation({
+    onSuccess: () => {
+      utils.pharmacyWorkflow.fill.invalidate();
+      utils.pharmacyWorkflow.queue.invalidate();
+      router.refresh();
+    },
+  });
+
+  const isLoading = startFillMutation.isPending ||
+                    scanNdcMutation.isPending ||
+                    completeFillMutation.isPending;
+
+  const handleRefresh = useCallback(() => {
+    router.refresh();
+  }, [router]);
+
+  const handleScan = useCallback(async (barcode: string, type: 'ndc' | 'rxnumber' | 'unknown') => {
     if (!selectedPrescription) return;
 
     if (type === 'ndc') {
       setScannedNdc(barcode);
-      // Verify NDC matches expected
+      // Verify NDC matches expected locally first
       const expectedNdc = selectedPrescription.ndc.replace(/-/g, '');
       const scannedClean = barcode.replace(/-/g, '');
-      setNdcVerified(expectedNdc === scannedClean);
+      const localMatch = expectedNdc === scannedClean;
+      setNdcVerified(localMatch);
+
+      // If we have an active fill, also verify via API
+      if (currentFillId && localMatch) {
+        try {
+          await scanNdcMutation.mutateAsync({
+            fillId: currentFillId,
+            scannedNdc: barcode,
+          });
+        } catch (error) {
+          console.error('NDC verification failed:', error);
+          setNdcVerified(false);
+        }
+      }
     }
-  }, [selectedPrescription]);
+  }, [selectedPrescription, currentFillId, scanNdcMutation]);
 
   const handlePrintLabel = useCallback(() => {
-    // In production, send to label printer
+    // In production, send to label printer via API
     setShowLabel(true);
   }, []);
 
-  const handleComplete = useCallback(async () => {
-    if (!selectedId || !ndcVerified) return;
+  const handleStartFill = useCallback(async () => {
+    if (!selectedId) return;
 
-    // In production, call API to mark as filled
-    setPrescriptions(prev => prev.filter(p => p.id !== selectedId));
-    setSelectedId(prescriptions[1]?.id || null);
-    setScannedNdc(null);
-    setNdcVerified(false);
-    setShowLabel(false);
-  }, [selectedId, ndcVerified, prescriptions]);
+    try {
+      const fill = await startFillMutation.mutateAsync({
+        prescriptionId: selectedId,
+      });
+      setCurrentFillId(fill.id);
+    } catch (error) {
+      console.error('Failed to start fill:', error);
+    }
+  }, [selectedId, startFillMutation]);
+
+  const handleComplete = useCallback(async () => {
+    if (!selectedId || !ndcVerified || !currentFillId) return;
+
+    try {
+      await completeFillMutation.mutateAsync({
+        fillId: currentFillId,
+      });
+
+      setPrescriptions(prev => prev.filter(p => p.id !== selectedId));
+      setSelectedId(prescriptions[1]?.id || null);
+      setCurrentFillId(null);
+      setScannedNdc(null);
+      setNdcVerified(false);
+      setShowLabel(false);
+    } catch (error) {
+      console.error('Failed to complete fill:', error);
+    }
+  }, [selectedId, ndcVerified, currentFillId, prescriptions, completeFillMutation]);
 
   const focusScanner = useCallback(() => {
     scannerRef.current?.querySelector('input')?.focus();

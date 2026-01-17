@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { router, protectedProcedure, techLevelProcedure } from '../trpc';
+import { router, techLevelProcedure } from '../trpc';
 import { TRPCError } from '@trpc/server';
 
 export const intakeRouter = router({
@@ -7,19 +7,20 @@ export const intakeRouter = router({
     .input(
       z.object({
         status: z.enum(['PENDING', 'IN_REVIEW', 'APPROVED', 'REJECTED']).optional(),
+        channel: z.enum(['E_PRESCRIBE', 'FAX', 'PHONE', 'HARD_COPY', 'TRANSFER_IN', 'REFILL_REQUEST', 'EMR_INTEGRATION']).optional(),
         limit: z.number().min(1).max(100).default(50),
         cursor: z.string().nullish(),
       })
     )
     .query(async ({ ctx, input }) => {
-      const { status, limit, cursor } = input;
+      const { status, limit, cursor, channel } = input;
 
       const items = await ctx.db.prescriptionIntake.findMany({
         take: limit + 1,
         cursor: cursor ? { id: cursor } : undefined,
-        where: status ? { status } : undefined,
-        include: {
-          patient: { select: { id: true, firstName: true, lastName: true, mrn: true } },
+        where: {
+          ...(status && { status }),
+          ...(channel && { channel }),
         },
         orderBy: { createdAt: 'desc' },
       });
@@ -66,20 +67,38 @@ export const intakeRouter = router({
         throw new TRPCError({ code: 'BAD_REQUEST', message: 'Intake already processed' });
       }
 
+      // Find or create patient if not linked
+      let patientId = intake.patientId;
+      if (!patientId) {
+        const existingPatient = await ctx.db.patient.findFirst({
+          where: {
+            firstName: intake.patientFirstName,
+            lastName: intake.patientLastName,
+            dateOfBirth: intake.patientDOB,
+          },
+        });
+
+        if (existingPatient) {
+          patientId = existingPatient.id;
+        }
+      }
+
+      // Create prescription from intake data
       const prescription = await ctx.db.prescription.create({
         data: {
-          patientId: intake.patientId,
-          prescriberId: intake.prescriberId,
+          patientId,
           drugName: intake.drugName,
-          strength: intake.strength,
-          dosageForm: intake.dosageForm,
-          quantity: intake.quantity,
+          drugNdc: intake.drugNDC,
+          quantityWritten: intake.quantity,
           daysSupply: intake.daysSupply,
-          refills: intake.refills,
-          sig: intake.sig,
-          writtenDate: intake.writtenDate,
-          status: 'PENDING',
-          createdBy: ctx.user.id,
+          directions: intake.directions,
+          dawCode: intake.dawCode,
+          refillsAuthorized: intake.refillsAuthorized,
+          isControlled: intake.isControlled,
+          deaSchedule: intake.schedule,
+          workflowState: 'DATA_ENTRY',
+          priority: 'NORMAL',
+          intakeId: intake.id,
         },
       });
 
@@ -87,6 +106,23 @@ export const intakeRouter = router({
         where: { id: input.intakeId },
         data: { status: 'APPROVED', processedAt: new Date() },
       });
+
+      // Create state history
+      const staff = await ctx.db.pharmacyStaff.findUnique({
+        where: { userId: ctx.user.id },
+      });
+
+      if (staff) {
+        await ctx.db.prescriptionStateHistory.create({
+          data: {
+            prescriptionId: prescription.id,
+            fromState: 'INTAKE',
+            toState: 'DATA_ENTRY',
+            changedById: staff.id,
+            reason: 'Converted from intake',
+          },
+        });
+      }
 
       await ctx.db.auditLog.create({
         data: {

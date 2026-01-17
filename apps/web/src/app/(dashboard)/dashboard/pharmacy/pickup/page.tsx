@@ -1,76 +1,86 @@
-import { requireSession, logPHIAccess } from '@/lib/auth';
-import { PickupStation } from './pickup-station';
+'use client';
 
-export const metadata = {
-  title: 'Pickup & Dispense | Xoai Pharmacy',
-  description: 'Patient pickup and prescription dispensing',
-};
+import { useState } from 'react';
+import { api } from '@/lib/trpc';
 
-export default async function PickupPage() {
-  const session = await requireSession('/dashboard/pharmacy/pickup');
-
-  await logPHIAccess('VIEW', 'Prescription', 'pickup-queue', {
-    section: 'pickup-station',
-    userId: session.user.id,
-  });
-
-  const mockStats = {
-    intake: 12,
-    dataEntry: 8,
-    insurance: 5,
-    fill: 15,
-    verify: 6,
-    ready: 22,
-  };
-
-  const mockPrescriptions = [
-    {
-      id: '1',
-      rxNumber: 'RX2026001270',
-      patientName: 'John Smith',
-      patientDob: '01/15/1990',
-      drugName: 'Lisinopril',
-      drugStrength: '10 mg',
-      quantity: 30,
-      copay: 10.00,
-      binLocation: 'A-12',
-      isControlled: false,
-      readyTime: '10:30 AM',
-    },
-    {
-      id: '2',
-      rxNumber: 'RX2026001271',
-      patientName: 'John Smith',
-      patientDob: '01/15/1990',
-      drugName: 'Metformin HCl',
-      drugStrength: '500 mg',
-      quantity: 90,
-      copay: 15.00,
-      binLocation: 'A-12',
-      isControlled: false,
-      readyTime: '10:30 AM',
-    },
-    {
-      id: '3',
-      rxNumber: 'RX2026001272',
-      patientName: 'Jane Doe',
-      patientDob: '03/22/1985',
-      drugName: 'Oxycodone HCl',
-      drugStrength: '5 mg',
-      quantity: 60,
-      copay: 25.00,
-      binLocation: 'C-3',
-      isControlled: true,
-      scheduleClass: 'C-II',
-      readyTime: '11:15 AM',
-    },
-  ];
+export default function PickupPage() {
+  const [search, setSearch] = useState({ first: '', last: '', dob: '' });
+  const [signature, setSignature] = useState('');
 
   return (
-    <PickupStation
-      stats={mockStats}
-      prescriptions={mockPrescriptions}
-      userId={session.user.id}
-    />
+    <div className="p-6 space-y-6">
+      <h1 className="text-2xl font-bold">Pickup / Dispense</h1>
+      
+      <div className="grid grid-cols-2 gap-6">
+        <div className="p-6 bg-white rounded-lg shadow">
+          <h2 className="text-lg font-bold mb-4">Patient Search (2+2+DOB)</h2>
+          
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium mb-1">First Name (2+ chars)</label>
+                <input
+                  value={search.first}
+                  onChange={(e) => setSearch({ ...search, first: e.target.value })}
+                  className="w-full border rounded px-3 py-2"
+                  placeholder="Jo"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Last Name (2+ chars)</label>
+                <input
+                  value={search.last}
+                  onChange={(e) => setSearch({ ...search, last: e.target.value })}
+                  className="w-full border rounded px-3 py-2"
+                  placeholder="Sm"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium mb-1">Date of Birth</label>
+              <input
+                type="date"
+                value={search.dob}
+                onChange={(e) => setSearch({ ...search, dob: e.target.value })}
+                className="w-full border rounded px-3 py-2"
+              />
+            </div>
+
+            <button className="w-full bg-blue-600 text-white py-2 rounded hover:bg-blue-700">
+              Search Patient
+            </button>
+          </div>
+        </div>
+
+        <div className="p-6 bg-white rounded-lg shadow">
+          <h2 className="text-lg font-bold mb-4">Ready for Pickup</h2>
+          <div className="text-center text-gray-500 py-8">Search for patient to view prescriptions</div>
+        </div>
+      </div>
+
+      <div className="p-6 bg-white rounded-lg shadow">
+        <h2 className="text-lg font-bold mb-4">Signature Capture</h2>
+        
+        <div className="border-2 border-dashed border-gray-300 rounded-lg h-40 flex items-center justify-center mb-4">
+          <span className="text-gray-400">Signature pad area</span>
+        </div>
+
+        <div className="space-y-2">
+          <label className="flex items-center gap-2">
+            <input type="checkbox" />
+            <span className="text-sm">HIPAA acknowledgment received</span>
+          </label>
+          <label className="flex items-center gap-2">
+            <input type="checkbox" />
+            <span className="text-sm">Counseling offered</span>
+          </label>
+        </div>
+
+        <button className="mt-4 w-full bg-green-600 text-white py-2 rounded hover:bg-green-700">
+          Complete Pickup
+        </button>
+      </div>
+    </div>
   );
 }

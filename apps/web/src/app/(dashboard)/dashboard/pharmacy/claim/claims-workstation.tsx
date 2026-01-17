@@ -1,6 +1,8 @@
 'use client';
 
 import { useState, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
+import { trpc } from '@/lib/trpc';
 import { QueueHeader } from '@/components/pharmacy/queue-header';
 import { KeyboardShortcuts } from '@/components/pharmacy/keyboard-shortcuts';
 import { useKeyboardShortcuts, type ShortcutConfig } from '@/hooks/use-keyboard-shortcuts';
@@ -92,10 +94,10 @@ const REJECT_CODE_RESOLUTIONS: Record<string, { title: string; actions: string[]
 };
 
 export function ClaimsWorkstation({ stats, claims: initialClaims, userId: _userId }: ClaimsWorkstationProps) {
+  const router = useRouter();
   const [claims, setClaims] = useState(initialClaims);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<ClaimStatus | 'all'>('all');
-  const [isLoading, setIsLoading] = useState(false);
   const [overrideCode, setOverrideCode] = useState('');
   const [showOverrideInput, setShowOverrideInput] = useState(false);
 
@@ -105,35 +107,69 @@ export function ClaimsWorkstation({ stats, claims: initialClaims, userId: _userI
     c => statusFilter === 'all' || c.status === statusFilter
   );
 
-  const handleRefresh = useCallback(async () => {
-    setIsLoading(true);
-    await new Promise(resolve => setTimeout(resolve, 500));
-    setIsLoading(false);
-  }, []);
+  // tRPC mutations
+  const utils = trpc.useUtils();
+
+  const resolveMutation = trpc.pharmacyWorkflow.claim.resolve.useMutation({
+    onSuccess: () => {
+      utils.pharmacyWorkflow.claim.invalidate();
+      utils.pharmacyWorkflow.queue.invalidate();
+      router.refresh();
+    },
+  });
+
+  const isLoading = resolveMutation.isPending;
+
+  const handleRefresh = useCallback(() => {
+    router.refresh();
+  }, [router]);
 
   const handleResubmit = useCallback(async (id: string) => {
-    // In production, call API to resubmit
-    setClaims(prev => prev.map(c =>
-      c.id === id ? { ...c, status: 'pending' as ClaimStatus } : c
-    ));
-  }, []);
+    try {
+      await resolveMutation.mutateAsync({
+        claimId: id,
+        action: 'resubmit',
+      });
+      setClaims(prev => prev.map(c =>
+        c.id === id ? { ...c, status: 'pending' as ClaimStatus } : c
+      ));
+    } catch (error) {
+      console.error('Failed to resubmit claim:', error);
+    }
+  }, [resolveMutation]);
 
   const handleConvertToCash = useCallback(async (id: string) => {
-    // In production, call API to convert to cash
-    setClaims(prev => prev.filter(c => c.id !== id));
-    setSelectedId(null);
-  }, []);
+    try {
+      await resolveMutation.mutateAsync({
+        claimId: id,
+        action: 'cash',
+      });
+      setClaims(prev => prev.filter(c => c.id !== id));
+      setSelectedId(null);
+    } catch (error) {
+      console.error('Failed to convert to cash:', error);
+    }
+  }, [resolveMutation]);
 
   // Submit with override code - used for DUR/plan limit overrides
   const handleSubmitWithOverride = useCallback(async (id: string, code: string) => {
     if (!code.trim()) return;
-    // In production, submit with override code
-    setClaims(prev => prev.map(c =>
-      c.id === id ? { ...c, status: 'pending' as ClaimStatus } : c
-    ));
-    setOverrideCode('');
-    setShowOverrideInput(false);
-  }, []);
+    try {
+      await resolveMutation.mutateAsync({
+        claimId: id,
+        action: 'override',
+        overrideCode: code,
+        overrideReason: 'Override requested by pharmacist',
+      });
+      setClaims(prev => prev.map(c =>
+        c.id === id ? { ...c, status: 'pending' as ClaimStatus } : c
+      ));
+      setOverrideCode('');
+      setShowOverrideInput(false);
+    } catch (error) {
+      console.error('Failed to submit with override:', error);
+    }
+  }, [resolveMutation]);
 
   // Keyboard shortcuts
   const shortcuts: ShortcutConfig[] = [

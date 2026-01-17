@@ -1,6 +1,8 @@
 'use client';
 
 import { useState, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
+import { trpc } from '@/lib/trpc';
 import { QueueHeader } from '@/components/pharmacy/queue-header';
 import { PatientSearch, type PatientResult } from '@/components/pharmacy/patient-search';
 import { SignaturePad } from '@/components/pharmacy/signature-pad';
@@ -38,7 +40,7 @@ interface PickupStationProps {
 type PickupStep = 'search' | 'verify' | 'signature' | 'complete';
 
 export function PickupStation({ stats, prescriptions: allPrescriptions, userId: _userId }: PickupStationProps) {
-  const [isLoading, setIsLoading] = useState(false);
+  const router = useRouter();
   const [step, setStep] = useState<PickupStep>('search');
   const [selectedPatient, setSelectedPatient] = useState<PatientResult | null>(null);
   const [patientPrescriptions, setPatientPrescriptions] = useState<PickupPrescription[]>([]);
@@ -47,13 +49,26 @@ export function PickupStation({ stats, prescriptions: allPrescriptions, userId: 
   const [counselingOffered, setCounselingOffered] = useState(false);
   const [signatureData, setSignatureData] = useState<string | null>(null);
 
-  const handleRefresh = useCallback(async () => {
-    setIsLoading(true);
-    await new Promise(resolve => setTimeout(resolve, 500));
-    setIsLoading(false);
-  }, []);
+  // tRPC mutations
+  const utils = trpc.useUtils();
 
-  const handlePatientSelect = (patient: PatientResult) => {
+  const startPickupMutation = trpc.pharmacyWorkflow.dispense.startPickup.useMutation();
+
+  const completeMutation = trpc.pharmacyWorkflow.dispense.complete.useMutation({
+    onSuccess: () => {
+      utils.pharmacyWorkflow.dispense.invalidate();
+      utils.pharmacyWorkflow.queue.invalidate();
+      router.refresh();
+    },
+  });
+
+  const isLoading = startPickupMutation.isPending || completeMutation.isPending;
+
+  const handleRefresh = useCallback(() => {
+    router.refresh();
+  }, [router]);
+
+  const handlePatientSelect = async (patient: PatientResult) => {
     setSelectedPatient(patient);
     // Find prescriptions for this patient
     const patientRxs = allPrescriptions.filter(
@@ -61,6 +76,17 @@ export function PickupStation({ stats, prescriptions: allPrescriptions, userId: 
     );
     setPatientPrescriptions(patientRxs);
     setSelectedRxIds(new Set(patientRxs.map(rx => rx.id)));
+
+    // Start pickup session via API
+    try {
+      await startPickupMutation.mutateAsync({
+        patientId: patient.id,
+        prescriptionIds: patientRxs.map(rx => rx.id),
+      });
+    } catch (error) {
+      console.error('Failed to start pickup session:', error);
+    }
+
     setStep('verify');
   };
 
@@ -78,18 +104,22 @@ export function PickupStation({ stats, prescriptions: allPrescriptions, userId: 
   };
 
   const handleComplete = useCallback(async () => {
-    if (!signatureData || selectedRxIds.size === 0) return;
+    if (!signatureData || selectedRxIds.size === 0 || !selectedPatient) return;
 
-    // In production, call API to complete pickup
-    console.log('Completing pickup:', {
-      patientId: selectedPatient?.id,
-      prescriptionIds: Array.from(selectedRxIds),
-      signature: signatureData,
-      counselingOffered,
-    });
+    try {
+      await completeMutation.mutateAsync({
+        patientId: selectedPatient.id,
+        prescriptionIds: Array.from(selectedRxIds),
+        signatureData,
+        counselingOffered,
+        idVerified: true,
+      });
 
-    setStep('complete');
-  }, [signatureData, selectedRxIds, selectedPatient, counselingOffered]);
+      setStep('complete');
+    } catch (error) {
+      console.error('Failed to complete pickup:', error);
+    }
+  }, [signatureData, selectedRxIds, selectedPatient, counselingOffered, completeMutation]);
 
   const handleReset = () => {
     setStep('search');

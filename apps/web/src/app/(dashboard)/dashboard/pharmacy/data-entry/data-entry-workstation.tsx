@@ -1,6 +1,8 @@
 'use client';
 
 import { useState, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
+import { trpc } from '@/lib/trpc';
 import { QueueHeader } from '@/components/pharmacy/queue-header';
 import { DrugSearch, type DrugResult } from '@/components/pharmacy/drug-search';
 import { PrescriberSearch, type PrescriberResult } from '@/components/pharmacy/prescriber-search';
@@ -56,9 +58,9 @@ const priorityConfig = {
 };
 
 export function DataEntryWorkstation({ stats, prescriptions: initialPrescriptions, userId }: DataEntryWorkstationProps) {
+  const router = useRouter();
   const [prescriptions, setPrescriptions] = useState(initialPrescriptions);
   const [selectedId, setSelectedId] = useState<string | null>(prescriptions[0]?.id || null);
-  const [isLoading, setIsLoading] = useState(false);
 
   // Form state for the selected prescription
   const [formData, setFormData] = useState({
@@ -76,19 +78,115 @@ export function DataEntryWorkstation({ stats, prescriptions: initialPrescription
 
   const selectedPrescription = prescriptions.find(p => p.id === selectedId);
 
-  const handleRefresh = useCallback(async () => {
-    setIsLoading(true);
-    await new Promise(resolve => setTimeout(resolve, 500));
-    setIsLoading(false);
-  }, []);
+  // tRPC mutations
+  const utils = trpc.useUtils();
+
+  const startDataEntryMutation = trpc.pharmacyWorkflow.dataEntry.start.useMutation({
+    onSuccess: () => {
+      utils.pharmacyWorkflow.queue.invalidate();
+    },
+  });
+
+  const updateFieldMutation = trpc.pharmacyWorkflow.dataEntry.updateField.useMutation();
+
+  const submitMutation = trpc.pharmacyWorkflow.dataEntry.submit.useMutation({
+    onSuccess: () => {
+      utils.pharmacyWorkflow.queue.invalidate();
+      router.refresh();
+    },
+  });
+
+  const addNoteMutation = trpc.pharmacyWorkflow.prescription.addNote.useMutation({
+    onSuccess: () => {
+      utils.pharmacyWorkflow.prescription.invalidate();
+    },
+  });
+
+  const isLoading = startDataEntryMutation.isPending ||
+                    updateFieldMutation.isPending ||
+                    submitMutation.isPending;
+
+  const handleRefresh = useCallback(() => {
+    router.refresh();
+  }, [router]);
 
   const handleSubmit = useCallback(async () => {
     if (!selectedId || !formData.drug) return;
 
-    // In production, call API to save and submit
-    setPrescriptions(prev => prev.filter(p => p.id !== selectedId));
-    setSelectedId(prescriptions[1]?.id || null);
-  }, [selectedId, formData, prescriptions]);
+    try {
+      // Update fields if changed
+      if (formData.drug) {
+        await updateFieldMutation.mutateAsync({
+          prescriptionId: selectedId,
+          field: 'drugId',
+          value: formData.drug.id,
+        });
+      }
+      if (formData.prescriber) {
+        await updateFieldMutation.mutateAsync({
+          prescriptionId: selectedId,
+          field: 'prescriberId',
+          value: formData.prescriber.id,
+        });
+      }
+      if (formData.sig) {
+        await updateFieldMutation.mutateAsync({
+          prescriptionId: selectedId,
+          field: 'directions',
+          value: formData.sig,
+        });
+      }
+      if (formData.quantity) {
+        await updateFieldMutation.mutateAsync({
+          prescriptionId: selectedId,
+          field: 'quantityWritten',
+          value: parseInt(formData.quantity),
+        });
+      }
+      if (formData.daysSupply) {
+        await updateFieldMutation.mutateAsync({
+          prescriptionId: selectedId,
+          field: 'daysSupply',
+          value: parseInt(formData.daysSupply),
+        });
+      }
+      if (formData.refills) {
+        await updateFieldMutation.mutateAsync({
+          prescriptionId: selectedId,
+          field: 'refillsAuthorized',
+          value: parseInt(formData.refills),
+        });
+      }
+      await updateFieldMutation.mutateAsync({
+        prescriptionId: selectedId,
+        field: 'dawCode',
+        value: parseInt(formData.dawCode),
+      });
+
+      // Submit to next state (insurance or filling)
+      const hasInsurance = !!formData.patient; // Simplified check
+      await submitMutation.mutateAsync({
+        prescriptionId: selectedId,
+        hasInsurance,
+      });
+
+      setPrescriptions(prev => prev.filter(p => p.id !== selectedId));
+      setSelectedId(prescriptions[1]?.id || null);
+      // Reset form
+      setFormData({
+        drug: null,
+        prescriber: null,
+        patient: null,
+        sig: '',
+        quantity: '',
+        daysSupply: '',
+        refills: '0',
+        dawCode: '0',
+      });
+    } catch (error) {
+      console.error('Failed to submit data entry:', error);
+    }
+  }, [selectedId, formData, prescriptions, updateFieldMutation, submitMutation]);
 
   const handleDrugSelect = (drug: DrugResult) => {
     setFormData(prev => ({ ...prev, drug }));
@@ -102,16 +200,29 @@ export function DataEntryWorkstation({ stats, prescriptions: initialPrescription
     setFormData(prev => ({ ...prev, patient }));
   };
 
-  const handleAddNote = (note: { type: string; content: string }) => {
-    const newNote: Note = {
-      id: Date.now().toString(),
-      type: note.type as Note['type'],
-      content: note.content,
-      createdAt: new Date(),
-      createdBy: { id: userId, name: 'Current User' },
-    };
-    setNotes(prev => [...prev, newNote]);
-  };
+  const handleAddNote = useCallback(async (note: { type: string; content: string }) => {
+    if (!selectedId) return;
+
+    try {
+      await addNoteMutation.mutateAsync({
+        prescriptionId: selectedId,
+        noteType: note.type.toUpperCase() as 'GENERAL' | 'CLINICAL' | 'INSURANCE' | 'PATIENT_REQUEST' | 'PRESCRIBER_COMM' | 'DUR_OVERRIDE' | 'WORKFLOW',
+        content: note.content,
+      });
+
+      // Add to local state for immediate feedback
+      const newNote: Note = {
+        id: Date.now().toString(),
+        type: note.type as Note['type'],
+        content: note.content,
+        createdAt: new Date(),
+        createdBy: { id: userId, name: 'Current User' },
+      };
+      setNotes(prev => [...prev, newNote]);
+    } catch (error) {
+      console.error('Failed to add note:', error);
+    }
+  }, [selectedId, userId, addNoteMutation]);
 
   // Keyboard shortcuts
   const shortcuts: ShortcutConfig[] = [

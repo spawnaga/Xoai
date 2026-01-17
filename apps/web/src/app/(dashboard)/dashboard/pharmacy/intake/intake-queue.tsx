@@ -2,6 +2,8 @@
 
 import { useState, useCallback } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { trpc } from '@/lib/trpc';
 import { QueueHeader } from '@/components/pharmacy/queue-header';
 import { KeyboardShortcuts } from '@/components/pharmacy/keyboard-shortcuts';
 import { useKeyboardShortcuts, type ShortcutConfig } from '@/hooks/use-keyboard-shortcuts';
@@ -53,10 +55,10 @@ const priorityConfig = {
 };
 
 export function IntakeQueue({ stats, prescriptions: initialPrescriptions, userId }: IntakeQueueProps) {
+  const router = useRouter();
   const [prescriptions, setPrescriptions] = useState(initialPrescriptions);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [sourceFilter, setSourceFilter] = useState<IntakeSource | 'all'>('all');
-  const [isLoading, setIsLoading] = useState(false);
 
   const selectedPrescription = prescriptions.find(p => p.id === selectedId);
 
@@ -64,24 +66,54 @@ export function IntakeQueue({ stats, prescriptions: initialPrescriptions, userId
     p => sourceFilter === 'all' || p.source === sourceFilter
   );
 
-  const handleRefresh = useCallback(async () => {
-    setIsLoading(true);
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 500));
-    setIsLoading(false);
-  }, []);
+  // tRPC mutations
+  const utils = trpc.useUtils();
+
+  const convertMutation = trpc.intake.convertToPrescription.useMutation({
+    onSuccess: () => {
+      // Invalidate queries and refresh
+      utils.intake.invalidate();
+      utils.pharmacyWorkflow.queue.invalidate();
+      router.refresh();
+    },
+  });
+
+  const updateStatusMutation = trpc.intake.updateStatus.useMutation({
+    onSuccess: () => {
+      utils.intake.invalidate();
+      router.refresh();
+    },
+  });
+
+  const isLoading = convertMutation.isPending || updateStatusMutation.isPending;
+
+  const handleRefresh = useCallback(() => {
+    router.refresh();
+  }, [router]);
 
   const handleAccept = useCallback(async (id: string) => {
-    // In production, call API to accept and move to data entry
-    setPrescriptions(prev => prev.filter(p => p.id !== id));
-    setSelectedId(null);
-  }, []);
+    try {
+      await convertMutation.mutateAsync({ intakeId: id });
+      setPrescriptions(prev => prev.filter(p => p.id !== id));
+      setSelectedId(null);
+    } catch (error) {
+      console.error('Failed to convert intake to prescription:', error);
+    }
+  }, [convertMutation]);
 
   const handleReject = useCallback(async (id: string) => {
-    // In production, call API to reject/cancel
-    setPrescriptions(prev => prev.filter(p => p.id !== id));
-    setSelectedId(null);
-  }, []);
+    try {
+      await updateStatusMutation.mutateAsync({
+        id,
+        status: 'REJECTED',
+        rejectionReason: 'Rejected by pharmacy staff',
+      });
+      setPrescriptions(prev => prev.filter(p => p.id !== id));
+      setSelectedId(null);
+    } catch (error) {
+      console.error('Failed to reject intake:', error);
+    }
+  }, [updateStatusMutation]);
 
   const handleNext = useCallback(() => {
     const currentIndex = filteredPrescriptions.findIndex(p => p.id === selectedId);

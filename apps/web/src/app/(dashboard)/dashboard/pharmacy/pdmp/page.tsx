@@ -1,55 +1,129 @@
-import Link from 'next/link';
-import { requireSession, logPHIAccess } from '@/lib/auth';
+'use client';
 
-export const metadata = {
-  title: 'PDMP Query | Xoai Healthcare',
-  description: 'Prescription Drug Monitoring Program queries',
-};
+import { useState } from 'react';
 
-export default async function PDMPPage() {
-  const session = await requireSession('/dashboard/pharmacy/pdmp');
+export default function PDMPPage() {
+  const [query, setQuery] = useState({ firstName: '', lastName: '', dob: '', state: '' });
+  const [result, setResult] = useState<any>(null);
 
-  await logPHIAccess('VIEW', 'Pharmacy', 'pdmp', {
-    section: 'pdmp-query',
-    userId: session.user.id,
-  });
+  const handleQuery = () => {
+    // Mock PDMP result
+    setResult({
+      riskLevel: 'moderate',
+      prescriberCount: 2,
+      pharmacyCount: 1,
+      totalMME: 45,
+      alerts: [
+        { type: 'early_refill', severity: 'warning', title: 'Early Refill Detected' },
+      ],
+    });
+  };
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center gap-4">
-        <Link
-          href="/dashboard/pharmacy"
-          className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
-        >
-          <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-          </svg>
-        </Link>
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900">PDMP Query</h1>
-          <p className="mt-1 text-slate-500">
-            Query Prescription Drug Monitoring Program for controlled substances
-          </p>
+    <div className="p-6 space-y-6">
+      <h1 className="text-2xl font-bold">PDMP Review</h1>
+      
+      <div className="p-6 bg-white rounded-lg shadow">
+        <h2 className="text-lg font-bold mb-4">Query PDMP</h2>
+        
+        <div className="grid grid-cols-2 gap-4 mb-4">
+          <div>
+            <label className="block text-sm font-medium mb-1">First Name</label>
+            <input
+              value={query.firstName}
+              onChange={(e) => setQuery({ ...query, firstName: e.target.value })}
+              className="w-full border rounded px-3 py-2"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium mb-1">Last Name</label>
+            <input
+              value={query.lastName}
+              onChange={(e) => setQuery({ ...query, lastName: e.target.value })}
+              className="w-full border rounded px-3 py-2"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium mb-1">Date of Birth</label>
+            <input
+              type="date"
+              value={query.dob}
+              onChange={(e) => setQuery({ ...query, dob: e.target.value })}
+              className="w-full border rounded px-3 py-2"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium mb-1">State</label>
+            <input
+              value={query.state}
+              onChange={(e) => setQuery({ ...query, state: e.target.value })}
+              className="w-full border rounded px-3 py-2"
+              placeholder="CA"
+              maxLength={2}
+            />
+          </div>
         </div>
+
+        <button
+          onClick={handleQuery}
+          className="w-full bg-blue-600 text-white py-2 rounded hover:bg-blue-700"
+        >
+          Query PDMP
+        </button>
       </div>
 
-      <div className="bg-white rounded-2xl border border-slate-200 p-12 text-center">
-        <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-purple-100 flex items-center justify-center">
-          <svg className="h-8 w-8 text-purple-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-          </svg>
+      {result && (
+        <div className="space-y-4">
+          <div className="p-6 bg-white rounded-lg shadow">
+            <h2 className="text-lg font-bold mb-4">PDMP Results</h2>
+            
+            <div className="grid grid-cols-4 gap-4 mb-4">
+              <div className="p-4 bg-gray-50 rounded">
+                <div className="text-sm text-gray-600">Risk Level</div>
+                <div className="text-xl font-bold text-yellow-600">{result.riskLevel}</div>
+              </div>
+              <div className="p-4 bg-gray-50 rounded">
+                <div className="text-sm text-gray-600">Prescribers</div>
+                <div className="text-xl font-bold">{result.prescriberCount}</div>
+              </div>
+              <div className="p-4 bg-gray-50 rounded">
+                <div className="text-sm text-gray-600">Pharmacies</div>
+                <div className="text-xl font-bold">{result.pharmacyCount}</div>
+              </div>
+              <div className="p-4 bg-gray-50 rounded">
+                <div className="text-sm text-gray-600">Total MME</div>
+                <div className="text-xl font-bold">{result.totalMME}</div>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              {result.alerts.map((alert: any, i: number) => (
+                <div key={i} className="p-3 bg-yellow-50 border border-yellow-200 rounded">
+                  <div className="font-medium text-yellow-900">{alert.title}</div>
+                  <div className="text-sm text-yellow-700">Severity: {alert.severity}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="p-6 bg-white rounded-lg shadow">
+            <h2 className="text-lg font-bold mb-4">Pharmacist Review</h2>
+            
+            <div>
+              <label className="block text-sm font-medium mb-1">Justification / Notes</label>
+              <textarea
+                className="w-full border rounded px-3 py-2"
+                rows={4}
+                placeholder="Document clinical justification for dispensing..."
+              />
+            </div>
+
+            <button className="mt-4 w-full bg-green-600 text-white py-2 rounded hover:bg-green-700">
+              Approve & Log Review
+            </button>
+          </div>
         </div>
-        <h2 className="text-xl font-semibold text-slate-900 mb-2">PDMP Integration</h2>
-        <p className="text-slate-500 max-w-md mx-auto mb-6">
-          State prescription drug monitoring program integration coming soon. Query patient controlled substance history before dispensing.
-        </p>
-        <div className="inline-flex items-center gap-2 px-4 py-2 bg-purple-50 text-purple-700 rounded-lg text-sm font-medium">
-          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg>
-          Coming Soon
-        </div>
-      </div>
+      )}
     </div>
   );
 }

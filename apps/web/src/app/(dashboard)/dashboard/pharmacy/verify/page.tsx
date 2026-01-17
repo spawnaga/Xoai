@@ -1,107 +1,116 @@
-import { requireSession, logPHIAccess } from '@/lib/auth';
-import { VerificationWorkstation } from './verification-workstation';
+'use client';
 
-export const metadata = {
-  title: 'Pharmacist Verification | Xoai Pharmacy',
-  description: 'Review and verify filled prescriptions',
-};
+import { useState } from 'react';
+import { api } from '@/lib/trpc';
+import PDMPReviewPanel from '@/components/pharmacy/PDMPReviewPanel';
 
-export default async function VerifyPage() {
-  const session = await requireSession('/dashboard/pharmacy/verify');
-
-  await logPHIAccess('VIEW', 'Prescription', 'verify-queue', {
-    section: 'pharmacist-verification',
-    userId: session.user.id,
+export default function VerifyPage() {
+  const { data: fills } = api.fill.list.useQuery({ status: 'COMPLETED' });
+  const [selectedFill, setSelectedFill] = useState<string | null>(null);
+  const [checklist, setChecklist] = useState({
+    patient: false,
+    drug: false,
+    sig: false,
+    product: false,
+    labels: false,
   });
 
-  // Check if user is pharmacist
-  const isPharmacist = session.user.role === 'pharmacist' || session.user.role === 'admin';
-
-  const mockStats = {
-    intake: 12,
-    dataEntry: 8,
-    insurance: 5,
-    fill: 15,
-    verify: 6,
-    ready: 22,
-  };
-
-  const mockPrescriptions = [
-    {
-      id: '1',
-      rxNumber: 'RX2026001260',
-      patientName: 'John Smith',
-      patientDob: '01/15/1990',
-      drugName: 'Lisinopril',
-      drugStrength: '10 mg',
-      drugForm: 'Tablet',
-      ndc: '00069-0150-01',
-      quantity: 30,
-      daysSupply: 30,
-      sig: 'Take 1 tablet by mouth once daily',
-      priority: 'NORMAL' as const,
-      state: 'VERIFICATION' as const,
-      waitingMinutes: 3,
-      isControlled: false,
-      filledBy: 'Tech Sarah',
-      durAlerts: [],
-    },
-    {
-      id: '2',
-      rxNumber: 'RX2026001261',
-      patientName: 'Jane Doe',
-      patientDob: '03/22/1985',
-      drugName: 'Oxycodone HCl',
-      drugStrength: '5 mg',
-      drugForm: 'Tablet',
-      ndc: '00078-0369-15',
-      quantity: 60,
-      daysSupply: 30,
-      sig: 'Take 1 tablet by mouth every 6 hours as needed for pain',
-      priority: 'STAT' as const,
-      state: 'VERIFICATION' as const,
-      waitingMinutes: 1,
-      isControlled: true,
-      scheduleClass: 'C-II',
-      filledBy: 'Tech Mike',
-      durAlerts: [
-        {
-          id: 'dur1',
-          type: 'drug-drug' as const,
-          severity: 'moderate' as const,
-          title: 'Opioid + Benzodiazepine',
-          description: 'Patient is also taking Alprazolam. Concurrent use may increase CNS depression.',
-          recommendation: 'Monitor for respiratory depression and excessive sedation.',
-          overrideRequired: true,
-        },
-      ],
-    },
-  ];
-
-  if (!isPharmacist) {
-    return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <div className="text-center">
-          <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-red-100 flex items-center justify-center">
-            <svg className="h-8 w-8 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-            </svg>
-          </div>
-          <h2 className="text-xl font-bold text-slate-900 mb-2">Access Restricted</h2>
-          <p className="text-slate-600">
-            Pharmacist verification is restricted to licensed pharmacists only.
-          </p>
-        </div>
-      </div>
-    );
-  }
+  const fill = fills?.find((f) => f.id === selectedFill);
+  const allChecked = Object.values(checklist).every(Boolean);
 
   return (
-    <VerificationWorkstation
-      stats={mockStats}
-      prescriptions={mockPrescriptions}
-      userId={session.user.id}
-      isPharmacist={isPharmacist}
-    />
+    <div className="p-6 space-y-6">
+      <h1 className="text-2xl font-bold">Pharmacist Verification</h1>
+      
+      <div className="grid grid-cols-3 gap-6">
+        <div className="col-span-1 space-y-2">
+          {fills?.map((fill) => (
+            <button
+              key={fill.id}
+              onClick={() => setSelectedFill(fill.id)}
+              className={`w-full p-4 text-left rounded border ${
+                selectedFill === fill.id ? 'border-blue-500 bg-blue-50' : 'border-gray-200'
+              }`}
+            >
+              <div className="font-medium">{fill.prescription.patient.firstName} {fill.prescription.patient.lastName}</div>
+              <div className="text-sm text-gray-600">Rx #{fill.prescription.id}</div>
+            </button>
+          ))}
+        </div>
+
+        <div className="col-span-2">
+          {fill ? (
+            <div className="space-y-4">
+              <div className="p-6 bg-white rounded-lg shadow">
+                <h2 className="text-xl font-bold mb-4">Verification Checklist</h2>
+                
+                <div className="space-y-3">
+                  <label className="flex items-center gap-3">
+                    <input
+                      type="checkbox"
+                      checked={checklist.patient}
+                      onChange={(e) => setChecklist({ ...checklist, patient: e.target.checked })}
+                      className="w-5 h-5"
+                    />
+                    <span>Patient name and DOB match</span>
+                  </label>
+                  <label className="flex items-center gap-3">
+                    <input
+                      type="checkbox"
+                      checked={checklist.drug}
+                      onChange={(e) => setChecklist({ ...checklist, drug: e.target.checked })}
+                      className="w-5 h-5"
+                    />
+                    <span>Drug, strength, and form correct</span>
+                  </label>
+                  <label className="flex items-center gap-3">
+                    <input
+                      type="checkbox"
+                      checked={checklist.sig}
+                      onChange={(e) => setChecklist({ ...checklist, sig: e.target.checked })}
+                      className="w-5 h-5"
+                    />
+                    <span>Directions (SIG) accurate</span>
+                  </label>
+                  <label className="flex items-center gap-3">
+                    <input
+                      type="checkbox"
+                      checked={checklist.product}
+                      onChange={(e) => setChecklist({ ...checklist, product: e.target.checked })}
+                      className="w-5 h-5"
+                    />
+                    <span>Product appearance and quantity correct</span>
+                  </label>
+                  <label className="flex items-center gap-3">
+                    <input
+                      type="checkbox"
+                      checked={checklist.labels}
+                      onChange={(e) => setChecklist({ ...checklist, labels: e.target.checked })}
+                      className="w-5 h-5"
+                    />
+                    <span>Label and auxiliary labels correct</span>
+                  </label>
+                </div>
+              </div>
+
+              <PDMPReviewPanel patientId={fill.prescription.patientId} isControlled={false} />
+
+              <button
+                disabled={!allChecked}
+                className={`w-full py-3 rounded font-medium ${
+                  allChecked
+                    ? 'bg-green-600 text-white hover:bg-green-700'
+                    : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                }`}
+              >
+                Approve & Move to Dispense
+              </button>
+            </div>
+          ) : (
+            <div className="text-center text-gray-500 py-12">Select a fill to verify</div>
+          )}
+        </div>
+      </div>
+    </div>
   );
 }

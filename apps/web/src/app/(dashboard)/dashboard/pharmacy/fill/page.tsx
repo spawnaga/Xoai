@@ -1,69 +1,122 @@
-import { requireSession, logPHIAccess } from '@/lib/auth';
-import { FillStation } from './fill-station';
+'use client';
 
-export const metadata = {
-  title: 'Fill Station | Xoai Pharmacy',
-  description: 'Fill prescriptions and print labels',
-};
+import { useState } from 'react';
+import { api } from '@/lib/trpc';
 
-export default async function FillPage() {
-  const session = await requireSession('/dashboard/pharmacy/fill');
+export default function FillStationPage() {
+  const { data: fills } = api.fill.list.useQuery({ status: 'PENDING' });
+  const finalizeMutation = api.fill.finalize.useMutation();
 
-  await logPHIAccess('VIEW', 'Prescription', 'fill-queue', {
-    section: 'fill-station',
-    userId: session.user.id,
-  });
+  const [selectedFill, setSelectedFill] = useState<string | null>(null);
+  const [ndc, setNdc] = useState('');
+  const [lot, setLot] = useState('');
+  const [exp, setExp] = useState('');
+  const [qty, setQty] = useState(0);
 
-  const mockStats = {
-    intake: 12,
-    dataEntry: 8,
-    insurance: 5,
-    fill: 15,
-    verify: 6,
-    ready: 22,
+  const handleSubmit = () => {
+    if (!selectedFill) return;
+    finalizeMutation.mutate({
+      fillId: selectedFill,
+      ndc,
+      lotNumber: lot,
+      expirationDate: new Date(exp),
+      quantityDispensed: qty,
+    });
+    setSelectedFill(null);
   };
 
-  const mockPrescriptions = [
-    {
-      id: '1',
-      rxNumber: 'RX2026001250',
-      patientName: 'John Smith',
-      drugName: 'Lisinopril',
-      drugStrength: '10 mg',
-      drugForm: 'Tablet',
-      ndc: '00069-0150-01',
-      quantity: 30,
-      daysSupply: 30,
-      sig: 'Take 1 tablet by mouth once daily',
-      priority: 'NORMAL' as const,
-      state: 'FILLING' as const,
-      waitingMinutes: 5,
-      isControlled: false,
-    },
-    {
-      id: '2',
-      rxNumber: 'RX2026001251',
-      patientName: 'Jane Doe',
-      drugName: 'Oxycodone HCl',
-      drugStrength: '5 mg',
-      drugForm: 'Tablet',
-      ndc: '00078-0369-15',
-      quantity: 60,
-      daysSupply: 30,
-      sig: 'Take 1 tablet by mouth every 6 hours as needed for pain',
-      priority: 'STAT' as const,
-      state: 'FILLING' as const,
-      waitingMinutes: 2,
-      isControlled: true,
-      scheduleClass: 'C-II',
-    },
-  ];
-
   return (
-    <FillStation
-      stats={mockStats}
-      prescriptions={mockPrescriptions}
-      userId={session.user.id}
-    />
+    <div className="p-6 space-y-6">
+      <h1 className="text-2xl font-bold">Fill Station</h1>
+      
+      <div className="grid grid-cols-3 gap-6">
+        <div className="col-span-1 space-y-2">
+          {fills?.map((fill) => (
+            <button
+              key={fill.id}
+              onClick={() => setSelectedFill(fill.id)}
+              className={`w-full p-4 text-left rounded border ${
+                selectedFill === fill.id ? 'border-blue-500 bg-blue-50' : 'border-gray-200'
+              }`}
+            >
+              <div className="font-medium">{fill.prescription.patient.firstName} {fill.prescription.patient.lastName}</div>
+              <div className="text-sm text-gray-600">Rx #{fill.prescription.id}</div>
+            </button>
+          ))}
+        </div>
+
+        <div className="col-span-2">
+          {selectedFill ? (
+            <div className="p-6 bg-white rounded-lg shadow space-y-4">
+              <h2 className="text-xl font-bold">Fill Details</h2>
+              
+              <div>
+                <label className="block text-sm font-medium mb-1">NDC</label>
+                <input
+                  value={ndc}
+                  onChange={(e) => setNdc(e.target.value)}
+                  className="w-full border rounded px-3 py-2"
+                  placeholder="00000-0000-00"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium mb-1">Lot Number</label>
+                  <input
+                    value={lot}
+                    onChange={(e) => setLot(e.target.value)}
+                    className="w-full border rounded px-3 py-2"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1">Expiration</label>
+                  <input
+                    type="date"
+                    value={exp}
+                    onChange={(e) => setExp(e.target.value)}
+                    className="w-full border rounded px-3 py-2"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium mb-1">Quantity Dispensed</label>
+                <input
+                  type="number"
+                  value={qty}
+                  onChange={(e) => setQty(parseInt(e.target.value))}
+                  className="w-full border rounded px-3 py-2"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label className="flex items-center gap-2">
+                  <input type="checkbox" />
+                  <span className="text-sm">Product verified</span>
+                </label>
+                <label className="flex items-center gap-2">
+                  <input type="checkbox" />
+                  <span className="text-sm">Quantity counted</span>
+                </label>
+                <label className="flex items-center gap-2">
+                  <input type="checkbox" />
+                  <span className="text-sm">Label printed</span>
+                </label>
+              </div>
+
+              <button
+                onClick={handleSubmit}
+                className="w-full bg-blue-600 text-white py-2 rounded hover:bg-blue-700"
+              >
+                Complete Fill → Move to Verify
+              </button>
+            </div>
+          ) : (
+            <div className="text-center text-gray-500 py-12">Select a fill to begin</div>
+          )}
+        </div>
+      </div>
+    </div>
   );
 }

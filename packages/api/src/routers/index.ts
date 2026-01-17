@@ -8,3 +8,7 @@ export { fhirRouter } from './fhir';
 export { userRouter } from './user';
 export { pharmacyRouter } from './pharmacy';
 export { pharmacyWorkflowRouter } from './pharmacy-workflow';
+export { claimsRouter } from './claims';
+export { fillRouter } from './fill';
+export { pdmpRouter } from './pdmp';
+export { dataEntryRouter } from './data-entry';

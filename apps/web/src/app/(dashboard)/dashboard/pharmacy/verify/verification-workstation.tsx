@@ -1,6 +1,8 @@
 'use client';
 
 import { useState, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
+import { trpc } from '@/lib/trpc';
 import { QueueHeader } from '@/components/pharmacy/queue-header';
 import { BarcodeScanner } from '@/components/pharmacy/barcode-scanner';
 import { DurAlertModal, type DurAlert, type DurOverride } from '@/components/pharmacy/dur-alert-modal';
@@ -60,9 +62,9 @@ const VERIFICATION_CHECKLIST = [
 ];
 
 export function VerificationWorkstation({ stats, prescriptions: initialPrescriptions, userId: _userId, isPharmacist }: VerificationWorkstationProps) {
+  const router = useRouter();
   const [prescriptions, setPrescriptions] = useState(initialPrescriptions);
   const [selectedId, setSelectedId] = useState<string | null>(prescriptions[0]?.id || null);
-  const [isLoading, setIsLoading] = useState(false);
   const [checklist, setChecklist] = useState<Record<string, boolean>>({});
   const [showDurModal, setShowDurModal] = useState(false);
   const [scannedNdc, setScannedNdc] = useState<string | null>(null);
@@ -73,11 +75,32 @@ export function VerificationWorkstation({ stats, prescriptions: initialPrescript
   const allChecked = VERIFICATION_CHECKLIST.every(item => checklist[item.id]);
   const hasDurAlerts = selectedPrescription?.durAlerts && selectedPrescription.durAlerts.length > 0;
 
-  const handleRefresh = useCallback(async () => {
-    setIsLoading(true);
-    await new Promise(resolve => setTimeout(resolve, 500));
-    setIsLoading(false);
-  }, []);
+  // tRPC mutations
+  const utils = trpc.useUtils();
+
+  const approveMutation = trpc.pharmacyWorkflow.verify.approve.useMutation({
+    onSuccess: () => {
+      utils.pharmacyWorkflow.verify.invalidate();
+      utils.pharmacyWorkflow.queue.invalidate();
+      router.refresh();
+    },
+  });
+
+  const rejectMutation = trpc.pharmacyWorkflow.verify.reject.useMutation({
+    onSuccess: () => {
+      utils.pharmacyWorkflow.verify.invalidate();
+      utils.pharmacyWorkflow.queue.invalidate();
+      router.refresh();
+    },
+  });
+
+  const overrideDurMutation = trpc.pharmacyWorkflow.verify.overrideDur.useMutation();
+
+  const isLoading = approveMutation.isPending || rejectMutation.isPending;
+
+  const handleRefresh = useCallback(() => {
+    router.refresh();
+  }, [router]);
 
   const handleScan = useCallback((barcode: string, type: 'ndc' | 'rxnumber' | 'unknown') => {
     if (!selectedPrescription) return;
@@ -102,16 +125,55 @@ export function VerificationWorkstation({ stats, prescriptions: initialPrescript
       return;
     }
 
-    // In production, call API to approve
-    completeApproval();
-  }, [selectedId, allChecked, ndcVerified, hasDurAlerts]);
+    // Call API to approve
+    try {
+      await approveMutation.mutateAsync({
+        prescriptionId: selectedId,
+        checklist: Object.entries(checklist).map(([item, checked]) => ({
+          item,
+          checked,
+        })),
+      });
+      completeApproval();
+    } catch (error) {
+      console.error('Failed to approve prescription:', error);
+    }
+  }, [selectedId, allChecked, ndcVerified, hasDurAlerts, checklist, approveMutation]);
 
-  const handleDurOverride = useCallback((overrides: DurOverride[]) => {
-    // In production, save overrides to database
-    console.log('DUR Overrides:', overrides);
-    setShowDurModal(false);
-    completeApproval();
-  }, []);
+  const handleDurOverride = useCallback(async (overrides: DurOverride[]) => {
+    if (!selectedId) return;
+
+    try {
+      // Save DUR overrides
+      for (const override of overrides) {
+        await overrideDurMutation.mutateAsync({
+          prescriptionId: selectedId,
+          durAlertId: override.alertId,
+          overrideCode: override.code,
+          reason: override.reason,
+        });
+      }
+
+      // Then approve
+      await approveMutation.mutateAsync({
+        prescriptionId: selectedId,
+        checklist: Object.entries(checklist).map(([item, checked]) => ({
+          item,
+          checked,
+        })),
+        durOverrides: overrides.map(o => ({
+          alertId: o.alertId,
+          code: o.code,
+          reason: o.reason,
+        })),
+      });
+
+      setShowDurModal(false);
+      completeApproval();
+    } catch (error) {
+      console.error('Failed to override DUR alerts:', error);
+    }
+  }, [selectedId, checklist, overrideDurMutation, approveMutation]);
 
   const completeApproval = () => {
     setPrescriptions(prev => prev.filter(p => p.id !== selectedId));
@@ -124,13 +186,21 @@ export function VerificationWorkstation({ stats, prescriptions: initialPrescript
   const handleReject = useCallback(async () => {
     if (!selectedId) return;
 
-    // In production, call API to reject and return to fill
-    setPrescriptions(prev => prev.filter(p => p.id !== selectedId));
-    setSelectedId(prescriptions[1]?.id || null);
-    setChecklist({});
-    setScannedNdc(null);
-    setNdcVerified(false);
-  }, [selectedId, prescriptions]);
+    try {
+      await rejectMutation.mutateAsync({
+        prescriptionId: selectedId,
+        reason: 'Verification failed - returned to fill',
+      });
+
+      setPrescriptions(prev => prev.filter(p => p.id !== selectedId));
+      setSelectedId(prescriptions[1]?.id || null);
+      setChecklist({});
+      setScannedNdc(null);
+      setNdcVerified(false);
+    } catch (error) {
+      console.error('Failed to reject prescription:', error);
+    }
+  }, [selectedId, prescriptions, rejectMutation]);
 
   const toggleChecklistItem = (id: string) => {
     setChecklist(prev => ({ ...prev, [id]: !prev[id] }));
