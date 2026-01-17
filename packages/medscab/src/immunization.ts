@@ -889,7 +889,7 @@ export function checkStandingOrderEligibility(
   // Check screening responses
   for (const response of screeningResponses) {
     if (!response.passedScreening) {
-      const question = order.screeningQuestions.find((q) => q.id === response.questionId);
+      const question = order.screeningQuestions?.find((q) => q.id === response.questionId);
       if (question?.contraindication) {
         reasons.push(`Contraindication: ${question.question}`);
       } else if (question?.precaution) {
@@ -1157,10 +1157,13 @@ export function getImmunizationSummary(
       };
     }
 
-    summary[key].doses++;
-    if (record.administeredAt > summary[key].lastDate) {
-      summary[key].lastDate = record.administeredAt;
-      summary[key].complete = record.seriesComplete;
+    const summaryEntry = summary[key];
+    if (summaryEntry) {
+      summaryEntry.doses++;
+      if (record.administeredAt > summaryEntry.lastDate) {
+        summaryEntry.lastDate = record.administeredAt;
+        summaryEntry.complete = record.seriesComplete;
+      }
     }
   }
 

@@ -142,6 +142,7 @@ const handler = NextAuth({
           isSuperuser: user.isSuperuser,
           isDoctor: user.isDoctor,
           isPharmacist: user.isPharmacist,
+          isPharmacyTechnician: user.isPharmacyTechnician,
         };
       },
     }),
@@ -178,6 +179,7 @@ const handler = NextAuth({
         token.isSuperuser = (user as { isSuperuser?: boolean }).isSuperuser;
         token.isDoctor = (user as { isDoctor?: boolean }).isDoctor;
         token.isPharmacist = (user as { isPharmacist?: boolean }).isPharmacist;
+        token.isPharmacyTechnician = (user as { isPharmacyTechnician?: boolean }).isPharmacyTechnician;
       }
       return token;
     },
@@ -189,6 +191,7 @@ const handler = NextAuth({
         (session.user as { isSuperuser?: boolean }).isSuperuser = token.isSuperuser as boolean;
         (session.user as { isDoctor?: boolean }).isDoctor = token.isDoctor as boolean;
         (session.user as { isPharmacist?: boolean }).isPharmacist = token.isPharmacist as boolean;
+        (session.user as { isPharmacyTechnician?: boolean }).isPharmacyTechnician = token.isPharmacyTechnician as boolean;
       }
       return session;
     },

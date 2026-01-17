@@ -1,48 +1,58 @@
 'use client';
 
-import { useActionState, useEffect } from 'react';
+import { useState } from 'react';
 import { signIn } from 'next-auth/react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { loginAction, type AuthState } from '@/app/(auth)/actions';
-
-const initialState: AuthState = {};
 
 export function LoginForm() {
-  const router = useRouter();
   const searchParams = useSearchParams();
-  const [state, formAction, isPending] = useActionState(loginAction, initialState);
+  const [error, setError] = useState<string | null>(null);
+  const [isPending, setIsPending] = useState(false);
 
-  // Handle successful credential validation - complete login with NextAuth
-  useEffect(() => {
-    if (state.success) {
-      // Get form data from the form element
-      const form = document.querySelector('form');
-      if (form) {
-        const formData = new FormData(form);
-        signIn('credentials', {
-          username: formData.get('username'),
-          password: formData.get('password'),
-          redirect: true,
-          callbackUrl: '/dashboard',
-        });
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setError(null);
+    setIsPending(true);
+
+    const formData = new FormData(e.currentTarget);
+    const username = formData.get('username') as string;
+    const password = formData.get('password') as string;
+
+    try {
+      const result = await signIn('credentials', {
+        username,
+        password,
+        redirect: false,
+        callbackUrl: '/dashboard',
+      });
+
+      if (result?.error) {
+        setError('Invalid username or password');
+        setIsPending(false);
+      } else if (result?.ok) {
+        // Redirect to dashboard on success
+        window.location.href = '/dashboard';
       }
+    } catch {
+      setError('An error occurred. Please try again.');
+      setIsPending(false);
     }
-  }, [state.success, router]);
+  };
 
   const showRegisteredMessage = searchParams.get('registered') === 'true';
 
   return (
-    <form action={formAction} className="space-y-6" autoComplete="on">
+    <form onSubmit={handleSubmit} className="space-y-6" autoComplete="on">
       {showRegisteredMessage && (
         <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-700 text-sm">
           Registration successful! Please sign in with your credentials.
         </div>
       )}
 
-      {state.error && (
+      {error && (
         <div className="p-4 bg-red-50 border border-red-200 rounded-xl text-red-700 text-sm">
-          {state.error}
+          {error}
         </div>
       )}
 
@@ -58,13 +68,7 @@ export function LoginForm() {
           autoComplete="username"
           className="w-full px-4 py-3 rounded-xl border border-slate-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none transition-all"
           placeholder="Enter your username"
-          aria-describedby={state.errors?.username ? 'username-error' : undefined}
         />
-        {state.errors?.username && (
-          <p id="username-error" className="mt-1 text-sm text-red-600">
-            {state.errors.username[0]}
-          </p>
-        )}
       </div>
 
       <div>
@@ -84,13 +88,7 @@ export function LoginForm() {
           autoComplete="current-password"
           className="w-full px-4 py-3 rounded-xl border border-slate-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none transition-all"
           placeholder="••••••••"
-          aria-describedby={state.errors?.password ? 'password-error' : undefined}
         />
-        {state.errors?.password && (
-          <p id="password-error" className="mt-1 text-sm text-red-600">
-            {state.errors.password[0]}
-          </p>
-        )}
       </div>
 
       <button

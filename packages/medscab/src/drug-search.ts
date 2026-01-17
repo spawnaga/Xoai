@@ -80,11 +80,11 @@ async function searchRxNorm(query: string, limit: number): Promise<Drug[]> {
     throw new Error(`RxNorm API error: ${response.status}`);
   }
 
-  const data = await response.json();
+  const data = await response.json() as { drugGroup?: { conceptGroup?: Array<{ conceptProperties?: Array<{ rxcui: string }> }> } };
   const drugs: Drug[] = [];
 
   // Parse RxNorm response
-  const drugGroup = data?.drugGroup;
+  const drugGroup = data.drugGroup;
   if (!drugGroup?.conceptGroup) {
     return drugs;
   }
@@ -120,8 +120,8 @@ async function getRxNormDrugDetails(rxcui: string): Promise<Drug | null> {
 
     if (!response.ok) return null;
 
-    const data = await response.json();
-    const relatedGroup = data?.allRelatedGroup;
+    const data = await response.json() as { allRelatedGroup?: { conceptGroup?: Array<{ tty?: string; conceptProperties?: Array<{ name: string }> }> } };
+    const relatedGroup = data.allRelatedGroup;
 
     if (!relatedGroup?.conceptGroup) return null;
 

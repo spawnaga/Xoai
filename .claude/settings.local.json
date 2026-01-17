@@ -54,7 +54,14 @@
       "Bash(cmd /c \"pnpm test\")",
       "Bash(cmd /c \"pnpm install\")",
       "Bash(npx pnpm build)",
-      "Bash(pnpm --filter @xoai/medscab type-check:*)"
+      "Bash(pnpm --filter @xoai/medscab type-check:*)",
+      "Bash(pnpm dev)",
+      "Bash(where.exe:*)",
+      "Bash(npx next dev)",
+      "Bash(npx next dev -p 3000)",
+      "Bash(netstat:*)",
+      "Bash(powershell:*)",
+      "Bash(python3:*)"
     ]
   }
 }

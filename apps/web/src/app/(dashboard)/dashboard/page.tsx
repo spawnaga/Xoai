@@ -90,7 +90,7 @@ async function getDashboardStats() {
 
     // Get today's encounters using the proper API method
     const todayEncounters = await caller.encounter.today().catch(() => []);
-    const inProgressEncounters = todayEncounters.filter(e => e.status === 'IN_PROGRESS').length;
+    const inProgressEncounters = todayEncounters.filter((e: { status: string }) => e.status === 'IN_PROGRESS').length;
 
     // Get patient list for count
     const patientsResult = await caller.patient.list({ limit: 100 }).catch(() => ({ items: [] }));
@@ -119,7 +119,7 @@ async function getRecentPatients() {
   try {
     const caller = await getServerCaller();
     const result = await caller.patient.list({ limit: 5 });
-    return result.items.map((p) => ({
+    return result.items.map((p: { id: string; firstName?: string; lastName?: string; mrn?: string; createdAt: Date }) => ({
       id: p.id,
       name: `${p.firstName || ''} ${p.lastName || ''}`.trim() || 'Unknown',
       mrn: p.mrn || 'N/A',
@@ -248,10 +248,10 @@ export default async function DashboardPage() {
           </div>
           {recentPatients.length > 0 ? (
             <div className="divide-y divide-slate-100">
-              {recentPatients.map((patient) => (
+              {recentPatients.map((patient: { id: string; name: string; mrn: string; lastVisit: string; status: string }) => (
                 <div key={patient.id} className="px-6 py-4 flex items-center gap-4 hover:bg-slate-50 transition-colors">
                   <div className="h-10 w-10 rounded-full bg-gradient-to-br from-blue-500 to-indigo-500 flex items-center justify-center text-white font-semibold text-sm">
-                    {patient.name.split(' ').map((n: string) => n[0]).join('').slice(0, 2)}
+                    {patient.name.split(' ').map((n: string) => n[0] || '').join('').slice(0, 2)}
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-semibold text-slate-900">{patient.name}</p>

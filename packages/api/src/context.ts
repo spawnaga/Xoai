@@ -8,19 +8,30 @@ export interface Context {
   session: Session | null;
 }
 
-export interface Session {
-  user: {
-    id: string;
-    email: string;
-    name?: string;
-    role: string;
-  };
-  expires: Date;
+export interface SessionUser {
+  id: string;
+  username?: string;
+  email?: string | null;
+  name?: string | null;
+  role: string;
+  isSuperuser?: boolean;
+  isDoctor?: boolean;
+  isPharmacist?: boolean;
+  isPharmacyTechnician?: boolean;
 }
 
-export async function createContext(): Promise<Context> {
+export interface Session {
+  user: SessionUser;
+  expires: string;
+}
+
+/**
+ * Create context with optional session
+ * Session should be passed from the API route handler
+ */
+export function createContext(session?: Session | null): Context {
   return {
     db,
-    session: null,
+    session: session ?? null,
   };
 }

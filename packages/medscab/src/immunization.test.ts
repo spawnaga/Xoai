@@ -807,9 +807,6 @@ function createMockVaccine(overrides: Partial<Vaccine> = {}): Vaccine {
     dosesPerVial: 10,
     diluentRequired: false,
     multiDoseVial: false,
-    quantityOnHand,
-    quantityAllocated,
-    quantityAvailable,
     reorderPoint: overrides.reorderPoint ?? 5,
     reorderQuantity: 20,
     vfcEligible: false,
@@ -820,7 +817,6 @@ function createMockVaccine(overrides: Partial<Vaccine> = {}): Vaccine {
     createdAt: now,
     updatedAt: now,
     ...overrides,
-    // Ensure our calculated values take precedence
     quantityOnHand,
     quantityAllocated,
     quantityAvailable,

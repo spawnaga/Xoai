@@ -262,7 +262,7 @@ export async function middleware(request: NextRequest) {
         pathname,
         {
           event: 'INVALID_SESSION',
-          tokenKeys: Object.keys(token),
+          tokenKeys: Object.keys(token as object),
           requestId,
         }
       ));
@@ -287,8 +287,8 @@ export async function middleware(request: NextRequest) {
         event: 'API_ACCESS',
         requestId,
         pathname,
-        userId: token.id,
-        userRole: token.role,
+        userId: token.id as string,
+        userRole: token.role as string,
         clientIp,
         timestamp: new Date().toISOString(),
       }));

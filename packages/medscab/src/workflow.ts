@@ -228,7 +228,7 @@ export function calculateWaitTimeStats(items: WorkflowItem[]): WaitTimeStats {
 
   return {
     average: Math.round(sum / waitTimes.length),
-    median: Math.round(sorted[Math.floor(sorted.length / 2)]),
+    median: Math.round(sorted[Math.floor(sorted.length / 2)] ?? 0),
     max: Math.round(Math.max(...waitTimes)),
     min: Math.round(Math.min(...waitTimes)),
     count: waitTimes.length,
@@ -484,7 +484,7 @@ function isInQuietHours(current: string, start: string, end: string): boolean {
 function getNextNonQuietTime(quietEnd: string): Date {
   const [hours, minutes] = quietEnd.split(':').map(Number);
   const next = new Date();
-  next.setHours(hours, minutes, 0, 0);
+  next.setHours(hours ?? 0, minutes ?? 0, 0, 0);
 
   // If quiet hours end time has passed today, schedule for tomorrow
   if (next <= new Date()) {

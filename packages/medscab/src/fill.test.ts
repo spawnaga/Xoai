@@ -35,9 +35,9 @@ describe('Fill Module', () => {
 
     it('should have controlled substance and high alert labels', () => {
       expect(AUXILIARY_LABELS.CONTROLLED_SUBSTANCE).toBeDefined();
-      expect(AUXILIARY_LABELS.CONTROLLED_SUBSTANCE.color).toBe('red');
+      expect(AUXILIARY_LABELS.CONTROLLED_SUBSTANCE?.color).toBe('red');
       expect(AUXILIARY_LABELS.HIGH_ALERT_MEDICATION).toBeDefined();
-      expect(AUXILIARY_LABELS.HIGH_ALERT_MEDICATION.color).toBe('red');
+      expect(AUXILIARY_LABELS.HIGH_ALERT_MEDICATION?.color).toBe('red');
     });
   });
 

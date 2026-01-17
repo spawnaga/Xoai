@@ -77,10 +77,11 @@ async function migrateUsers(db: any, prisma: PrismaClient): Promise<MigrationRes
       // Use existing hashed password if available, otherwise use default
       const password = user.user_password || defaultHashedPassword;
       await prisma.user.upsert({
-        where: { email: user.user_email || `${user.user_username}@migrated.local` },
+        where: { email: user.user_email || `${user.user_username}@migrated.local`, username: user.user_username || user.user_email?.split('@')[0] || 'unknown' },
         update: {},
         create: {
           email: user.user_email || `${user.user_username}@migrated.local`,
+          username: user.user_username || user.user_email?.split('@')[0] || 'unknown',
           password: password,
           name: `${user.user_first_name || ""} ${user.user_last_name || ""}`.trim(),
           role: role,

@@ -24,6 +24,7 @@ export interface AuthUser {
   isSuperuser: boolean;
   isDoctor: boolean;
   isPharmacist: boolean;
+  isPharmacyTechnician: boolean;
 }
 
 export interface AuthSession {
@@ -56,6 +57,7 @@ export const getSession = cache(async (): Promise<AuthSession | null> => {
       isSuperuser: (session.user as Record<string, unknown>).isSuperuser as boolean || false,
       isDoctor: (session.user as Record<string, unknown>).isDoctor as boolean || false,
       isPharmacist: (session.user as Record<string, unknown>).isPharmacist as boolean || false,
+      isPharmacyTechnician: (session.user as Record<string, unknown>).isPharmacyTechnician as boolean || false,
     },
     expires: session.expires || new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
   };
@@ -164,17 +166,33 @@ export async function logPHIAccess(
   const session = await getSession();
   if (!session) return;
 
+  // Map action to AuditAction enum values
+  const actionMap = {
+    VIEW: 'PHI_VIEW',
+    CREATE: 'PHI_CREATE',
+    UPDATE: 'PHI_UPDATE',
+    DELETE: 'PHI_DELETE',
+    EXPORT: 'PHI_EXPORT',
+  } as const;
+
   try {
+    // Verify user exists before creating audit log to avoid FK constraint errors
+    const userExists = session.user.id ? await db.user.findUnique({
+      where: { id: session.user.id },
+      select: { id: true },
+    }) : null;
+
     await db.auditLog.create({
       data: {
-        action: `PHI_${action}`,
+        action: actionMap[action] as 'PHI_VIEW' | 'PHI_CREATE' | 'PHI_UPDATE' | 'PHI_DELETE' | 'PHI_EXPORT',
         resourceType,
         resourceId,
-        userId: session.user.id,
+        userId: userExists ? session.user.id : null,
         details: {
           ...details,
           userName: session.user.name,
           userRole: session.user.role,
+          sessionUserId: session.user.id,
           timestamp: new Date().toISOString(),
         },
       },

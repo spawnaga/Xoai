@@ -38,15 +38,21 @@ export const createServerContext = cache(async (): Promise<Context> => {
   const session = await getSession();
 
   // Convert AuthSession to API Context Session format
+  // Include all permission-related fields for authorization checks
   const contextSession = session
     ? {
         user: {
           id: session.user.id,
+          username: session.user.username,
           email: session.user.email,
           name: session.user.name || undefined,
           role: session.user.role,
+          isSuperuser: session.user.isSuperuser,
+          isDoctor: session.user.isDoctor,
+          isPharmacist: session.user.isPharmacist,
+          isPharmacyTechnician: session.user.isPharmacyTechnician,
         },
-        expires: new Date(session.expires),
+        expires: session.expires,
       }
     : null;
 
