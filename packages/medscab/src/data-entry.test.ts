@@ -24,15 +24,15 @@ describe('Data Entry Module', () => {
     });
 
     it('should have correct description for DAW 0', () => {
-      expect(DAW_CODES[0].description).toBe('No Product Selection Indicated');
+      expect(DAW_CODES[0]?.description).toBe('No Product Selection Indicated');
     });
 
     it('should have correct description for DAW 1', () => {
-      expect(DAW_CODES[1].description).toBe('Substitution Not Allowed by Prescriber');
+      expect(DAW_CODES[1]?.description).toBe('Substitution Not Allowed by Prescriber');
     });
 
     it('should have correct description for DAW 2', () => {
-      expect(DAW_CODES[2].description).toContain('Patient Requested');
+      expect(DAW_CODES[2]?.description).toContain('Patient Requested');
     });
   });
 

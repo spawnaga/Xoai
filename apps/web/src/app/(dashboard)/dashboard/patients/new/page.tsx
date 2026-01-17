@@ -11,7 +11,7 @@ export default function NewPatientPage() {
   const [error, setError] = useState<string | null>(null);
 
   const createPatient = api.patient.create.useMutation({
-    onSuccess: (patient: unknown) => {
+    onSuccess: () => {
       router.push(`/dashboard/patients`);
     },
     onError: (err: { message: string }) => {

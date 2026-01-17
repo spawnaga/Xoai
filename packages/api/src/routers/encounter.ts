@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { router, protectedProcedure, clinicalProcedure, doctorProcedure } from '../trpc';
+import { router, clinicalProcedure, doctorProcedure } from '../trpc';
 import { TRPCError } from '@trpc/server';
 import { EncounterStatus, EncounterType } from '@xoai/db';
 
@@ -185,7 +185,7 @@ export const encounterRouter = router({
     const tomorrow = new Date(today);
     tomorrow.setDate(tomorrow.getDate() + 1);
 
-    const encounters = await ctx.db.encounter.findMany({
+    return ctx.db.encounter.findMany({
       where: {
         startDate: {
           gte: today,
@@ -204,8 +204,6 @@ export const encounterRouter = router({
       },
       orderBy: { startDate: 'asc' },
     });
-
-    return encounters;
   }),
 
   // Get encounter statistics

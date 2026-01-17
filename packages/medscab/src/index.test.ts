@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import {
   searchDrugs,
   getDrugById,
@@ -22,7 +22,7 @@ describe('MedsCab Package', () => {
       const result = await searchDrugs({ query: 'lisinopril' });
 
       expect(result.drugs.length).toBeGreaterThan(0);
-      expect(result.drugs[0].genericName.toLowerCase()).toContain('lisinopril');
+      expect(result.drugs[0]?.genericName.toLowerCase()).toContain('lisinopril');
       expect(['rxnorm', 'fallback']).toContain(result.source);
     });
 
@@ -30,14 +30,14 @@ describe('MedsCab Package', () => {
       const result = await searchDrugs({ query: 'Lipitor' });
 
       expect(result.drugs.length).toBeGreaterThan(0);
-      expect(result.drugs[0].brandName).toBe('Lipitor');
+      expect(result.drugs[0]?.brandName).toBe('Lipitor');
     });
 
     it('should filter by dosage form', async () => {
       const result = await searchDrugs({ query: 'omeprazole', dosageForm: 'capsule' });
 
       expect(result.drugs.length).toBeGreaterThan(0);
-      expect(result.drugs[0].dosageForm.toLowerCase()).toContain('capsule');
+      expect(result.drugs[0]?.dosageForm.toLowerCase()).toContain('capsule');
     });
 
     it('should limit results', async () => {
@@ -82,7 +82,7 @@ describe('MedsCab Package', () => {
 
       expect(result.hasInteractions).toBe(true);
       expect(result.highSeverityCount).toBeGreaterThan(0);
-      expect(result.interactions[0].severity).toBe('high');
+      expect(result.interactions[0]?.severity).toBe('high');
     });
 
     it('should detect warfarin-ibuprofen interaction', () => {
@@ -103,7 +103,7 @@ describe('MedsCab Package', () => {
       const result = checkDrugInteractions('hydrocodone', ['alprazolam']);
 
       expect(result.hasInteractions).toBe(true);
-      expect(result.interactions[0].description.toLowerCase()).toContain('respiratory');
+      expect(result.interactions[0]?.description.toLowerCase()).toContain('respiratory');
     });
 
     it('should return no interactions for safe combinations', () => {
@@ -133,7 +133,7 @@ describe('MedsCab Package', () => {
       const result = checkContraindications('warfarin', ['pregnancy']);
 
       expect(result.hasContraindications).toBe(true);
-      expect(result.contraindications[0].severity).toBe('high');
+      expect(result.contraindications[0]?.severity).toBe('high');
     });
 
     it('should detect metformin contraindication in kidney disease', () => {
@@ -162,15 +162,15 @@ describe('MedsCab Package', () => {
       const result = checkAllergies('penicillin', ['penicillin']);
 
       expect(result.hasAllergies).toBe(true);
-      expect(result.alerts[0].type).toBe('direct_match');
-      expect(result.alerts[0].severity).toBe('high');
+      expect(result.alerts[0]?.type).toBe('direct_match');
+      expect(result.alerts[0]?.severity).toBe('high');
     });
 
     it('should detect penicillin cross-reactivity with amoxicillin', () => {
       const result = checkAllergies('amoxicillin', ['penicillin']);
 
       expect(result.hasAllergies).toBe(true);
-      expect(result.alerts[0].type).toBe('cross_reactivity');
+      expect(result.alerts[0]?.type).toBe('cross_reactivity');
     });
 
     it('should detect aspirin-NSAID cross-reactivity', () => {
@@ -339,8 +339,8 @@ describe('MedsCab Package', () => {
       });
 
       expect(result.guidelines.length).toBeGreaterThan(0);
-      expect(result.guidelines[0].drugName).toBe('Lisinopril');
-      expect(result.guidelines[0].monitoringParameters.length).toBeGreaterThan(0);
+      expect(result.guidelines[0]?.drugName).toBe('Lisinopril');
+      expect(result.guidelines[0]?.monitoringParameters.length).toBeGreaterThan(0);
     });
 
     it('should apply geriatric adjustments', () => {
@@ -361,7 +361,7 @@ describe('MedsCab Package', () => {
       });
 
       expect(result.patientSpecific.renalStatus).toContain('Moderate');
-      expect(result.guidelines[0].notes?.some(n => n.toLowerCase().includes('renal'))).toBe(true);
+      expect(result.guidelines[0]?.notes?.some(n => n.toLowerCase().includes('renal'))).toBe(true);
     });
 
     it('should filter by indication', () => {
@@ -371,7 +371,7 @@ describe('MedsCab Package', () => {
         indication: 'heart failure',
       });
 
-      expect(result.guidelines[0].indication).toContain('Heart Failure');
+      expect(result.guidelines[0]?.indication).toContain('Heart Failure');
     });
 
     it('should return generic guidance for unknown drugs', () => {
@@ -381,7 +381,7 @@ describe('MedsCab Package', () => {
       });
 
       expect(result.guidelines.length).toBe(1);
-      expect(result.guidelines[0].standardDose).toContain('prescribing information');
+      expect(result.guidelines[0]?.standardDose).toContain('prescribing information');
     });
   });
 

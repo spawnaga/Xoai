@@ -43,14 +43,13 @@ export const prescriptionRouter = router({
       })
     )
     .query(async ({ input }) => {
-      const result = await searchDrugs({
+      return searchDrugs({
         query: input.query,
         limit: input.limit,
         dosageForm: input.dosageForm,
         route: input.route,
       });
 
-      return result;
     }),
 
   /**
@@ -95,7 +94,7 @@ export const prescriptionRouter = router({
         select: { name: true },
       });
 
-      const currentMedications = activeMeds.map((m) => m.name);
+      const currentMedications = activeMeds.map((m: { name: string }) => m.name);
       const result = checkDrugInteractions(input.drugName, currentMedications);
 
       // Log the interaction check for audit
@@ -113,7 +112,6 @@ export const prescriptionRouter = router({
         },
       });
 
-      return result;
     }),
 
   /**
@@ -144,15 +142,14 @@ export const prescriptionRouter = router({
       let allergies: string[] = [];
       if (patient.allergies) {
         if (typeof patient.allergies === 'string') {
-          allergies = patient.allergies.split(',').map((a) => a.trim());
+          allergies = patient.allergies.split(',').map((a: string) => a.trim());
         } else if (Array.isArray(patient.allergies)) {
           allergies = patient.allergies;
         }
       }
 
-      const result = checkAllergies(input.drugName, allergies);
+      return checkAllergies(input.drugName, allergies);
 
-      return result;
     }),
 
   /**
@@ -175,10 +172,9 @@ export const prescriptionRouter = router({
         select: { name: true },
       });
 
-      const patientConditions = conditions.map((c) => c.name);
-      const result = checkContraindications(input.drugName, patientConditions);
+      const patientConditions = conditions.map((c: { name: string }) => c.name);
+      return checkContraindications(input.drugName, patientConditions);
 
-      return result;
     }),
 
   /**
@@ -219,7 +215,7 @@ export const prescriptionRouter = router({
       let allergies: string[] = [];
       if (patient.allergies) {
         if (typeof patient.allergies === 'string') {
-          allergies = patient.allergies.split(',').map((a) => a.trim());
+          allergies = patient.allergies.split(',').map((a: string) => a.trim());
         } else if (Array.isArray(patient.allergies)) {
           allergies = patient.allergies;
         }
@@ -227,8 +223,8 @@ export const prescriptionRouter = router({
 
       const result = comprehensiveSafetyCheck(
         input.drugName,
-        activeMeds.map((m) => m.name),
-        conditions.map((c) => c.name),
+        activeMeds.map((m: { name: string }) => m.name),
+        conditions.map((c: { name: string }) => c.name),
         allergies
       );
 
@@ -247,7 +243,6 @@ export const prescriptionRouter = router({
         },
       });
 
-      return result;
     }),
 
   // ============================================
@@ -308,7 +303,7 @@ export const prescriptionRouter = router({
       let allergies: string[] = [];
       if (patient.allergies) {
         if (typeof patient.allergies === 'string') {
-          allergies = patient.allergies.split(',').map((a) => a.trim());
+          allergies = patient.allergies.split(',').map((a: string) => a.trim());
         } else if (Array.isArray(patient.allergies)) {
           allergies = patient.allergies;
         }
@@ -328,9 +323,9 @@ export const prescriptionRouter = router({
         frequency: input.frequency,
         route: input.route,
         indication: input.indication,
-        currentMedications: activeMeds.map((m) => m.name),
+        currentMedications: activeMeds.map((m: { name: string }) => m.name),
         patientAllergies: allergies,
-        patientConditions: conditions.map((c) => c.name),
+        patientConditions: conditions.map((c: { name: string }) => c.name),
         patientAge: age,
         isPregnant,
       });
@@ -414,7 +409,6 @@ export const prescriptionRouter = router({
         indication: input.indication,
       });
 
-      return guidelines;
     }),
 
   // ============================================

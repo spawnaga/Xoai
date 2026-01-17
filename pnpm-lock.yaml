@@ -160,6 +160,9 @@ importers:
       '@xoai/medscab':
         specifier: workspace:*
         version: link:../medscab
+      bcryptjs:
+        specifier: ^2.4.3
+        version: 2.4.3
       superjson:
         specifier: ^2.2.0
         version: 2.2.6
@@ -167,6 +170,9 @@ importers:
         specifier: ^3.22.0
         version: 3.25.76
     devDependencies:
+      '@types/bcryptjs':
+        specifier: ^2.4.6
+        version: 2.4.6
       '@xoai/typescript-config':
         specifier: workspace:*
         version: link:../../tooling/typescript
@@ -4136,7 +4142,6 @@ packages:
 
   /bcryptjs@2.4.3:
     resolution: {integrity: sha512-V/Hy/X9Vt7f3BbPJEi8BdVFMByHi+jNXrYkW3huaybV/kQ0KJg0Y6PkEMbn+zeT+i+SiKZ/HMqJGIIt4LZDqNQ==}
-    dev: true
 
   /bcryptjs@3.0.3:
     resolution: {integrity: sha512-GlF5wPWnSa/X5LKM1o0wz0suXIINz1iHRLvTS+sLyi7XPbe5ycmYI3DlZqVGZZtDgl4DmasFg7gOB3JYbphV5g==}

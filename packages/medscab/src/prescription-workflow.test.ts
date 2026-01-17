@@ -330,10 +330,10 @@ describe('Prescription Workflow Module', () => {
 
       const sorted = sortWorkflowItems(items);
 
-      expect(sorted[0].priority).toBe('STAT');
-      expect(sorted[1].priority).toBe('URGENT');
-      expect(sorted[2].priority).toBe('NORMAL');
-      expect(sorted[3].priority).toBe('LOW');
+      expect(sorted[0]?.priority).toBe('STAT');
+      expect(sorted[1]?.priority).toBe('URGENT');
+      expect(sorted[2]?.priority).toBe('NORMAL');
+      expect(sorted[3]?.priority).toBe('LOW');
     });
 
     it('should sort by promise time within same priority', () => {
@@ -350,8 +350,8 @@ describe('Prescription Workflow Module', () => {
 
       const sorted = sortWorkflowItems(items);
 
-      expect(sorted[0].id).toBe('2');
-      expect(sorted[1].id).toBe('1');
+      expect(sorted[0]?.id).toBe('2');
+      expect(sorted[1]?.id).toBe('1');
     });
 
     it('should not mutate original array', () => {
@@ -362,8 +362,8 @@ describe('Prescription Workflow Module', () => {
 
       const sorted = sortWorkflowItems(items);
 
-      expect(items[0].id).toBe('1');
-      expect(sorted[0].id).toBe('2');
+      expect(items[0]?.id).toBe('1');
+      expect(sorted[0]?.id).toBe('2');
     });
   });
 

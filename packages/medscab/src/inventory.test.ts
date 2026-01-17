@@ -200,8 +200,8 @@ describe('Inventory Module', () => {
       const result = generateReorderList(inventory);
 
       expect(result).toHaveLength(2);
-      expect(result[0].drugName).toBe('Drug A');
-      expect(result[1].drugName).toBe('Drug B');
+      expect(result[0]?.drugName).toBe('Drug A');
+      expect(result[1]?.drugName).toBe('Drug B');
     });
 
     it('should sort by priority (highest first)', () => {
@@ -212,8 +212,8 @@ describe('Inventory Module', () => {
 
       const result = generateReorderList(inventory);
 
-      expect(result[0].drugName).toBe('Drug B'); // Out of stock = highest priority
-      expect(result[0].priority).toBe(10);
+      expect(result[0]?.drugName).toBe('Drug B'); // Out of stock = highest priority
+      expect(result[0]?.priority).toBe(10);
     });
 
     it('should calculate estimated cost', () => {
@@ -226,7 +226,7 @@ describe('Inventory Module', () => {
 
       const result = generateReorderList(inventory);
 
-      expect(result[0].estimatedCost).toBe(450);
+      expect(result[0]?.estimatedCost).toBe(450);
     });
   });
 
@@ -269,8 +269,8 @@ describe('Inventory Module', () => {
       const result = findExpiringInventory(inventory, 90);
 
       expect(result).toHaveLength(1);
-      expect(result[0].drugName).toBe('Drug A');
-      expect(result[0].daysUntilExpiration).toBeLessThanOrEqual(30);
+      expect(result[0]?.drugName).toBe('Drug A');
+      expect(result[0]?.daysUntilExpiration).toBeLessThanOrEqual(30);
     });
 
     it('should identify already expired items', () => {
@@ -283,7 +283,7 @@ describe('Inventory Module', () => {
       const result = findExpiringInventory(inventory);
 
       expect(result).toHaveLength(1);
-      expect(result[0].isExpired).toBe(true);
+      expect(result[0]?.isExpired).toBe(true);
     });
 
     it('should sort by expiration date (soonest first)', () => {
@@ -300,7 +300,7 @@ describe('Inventory Module', () => {
 
       const result = findExpiringInventory(inventory, 90);
 
-      expect(result[0].drugName).toBe('Drug A'); // Expires sooner
+      expect(result[0]?.drugName).toBe('Drug A'); // Expires sooner
     });
   });
 

@@ -158,10 +158,10 @@ describe('Workflow Module', () => {
 
       const sorted = sortWorkflowItems(items);
 
-      expect(sorted[0].priority).toBe('stat');
-      expect(sorted[1].priority).toBe('urgent');
-      expect(sorted[2].priority).toBe('normal');
-      expect(sorted[3].priority).toBe('low');
+      expect(sorted[0]?.priority).toBe('stat');
+      expect(sorted[1]?.priority).toBe('urgent');
+      expect(sorted[2]?.priority).toBe('normal');
+      expect(sorted[3]?.priority).toBe('low');
     });
 
     it('should sort by promise time within same priority', () => {
@@ -178,8 +178,8 @@ describe('Workflow Module', () => {
 
       const sorted = sortWorkflowItems(items);
 
-      expect(sorted[0].id).toBe('2'); // Earlier promise time
-      expect(sorted[1].id).toBe('1');
+      expect(sorted[0]?.id).toBe('2'); // Earlier promise time
+      expect(sorted[1]?.id).toBe('1');
     });
 
     it('should not mutate original array', () => {
@@ -190,8 +190,8 @@ describe('Workflow Module', () => {
 
       const sorted = sortWorkflowItems(items);
 
-      expect(items[0].id).toBe('1');
-      expect(sorted[0].id).toBe('2');
+      expect(items[0]?.id).toBe('1');
+      expect(sorted[0]?.id).toBe('2');
     });
   });
 
@@ -294,7 +294,7 @@ describe('Workflow Module', () => {
       const result = transitionState(item, 'verification', 'USER-001', 'Verification complete');
 
       expect(result.item.stateHistory).toHaveLength(1);
-      expect(result.item.stateHistory[0].reason).toBe('Verification complete');
+      expect(result.item.stateHistory[0]?.reason).toBe('Verification complete');
     });
 
     it('should fail for invalid transition', () => {
