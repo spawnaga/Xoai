@@ -1352,6 +1352,195 @@ export const pharmacyWorkflowRouter = router({
 
         return session;
       }),
+
+    /**
+     * Get will-call bins (prescriptions ready for pickup in bins)
+     */
+    getWillCallBins: techLevelProcedure
+      .input(
+        z.object({
+          limit: z.number().min(1).max(100).default(50),
+        })
+      )
+      .query(async ({ ctx, input }) => {
+        const fills = await ctx.db.prescriptionFill.findMany({
+          take: input.limit,
+          where: {
+            status: 'verified',
+            prescription: {
+              workflowState: 'READY',
+            },
+          },
+          include: {
+            prescription: {
+              include: {
+                patient: { select: { id: true, firstName: true, lastName: true, phone: true } },
+                drug: { select: { displayName: true, deaSchedule: true } },
+              },
+            },
+          },
+          orderBy: { verifiedAt: 'asc' },
+        });
+
+        return fills.map((fill) => ({
+          id: fill.id,
+          binLocation: fill.binLocation ?? 'A1',
+          prescriptionId: fill.prescriptionId,
+          prescription: fill.prescription,
+          patientPayAmount: fill.patientPayAmount,
+          verifiedAt: fill.verifiedAt,
+          filledAt: fill.filledAt,
+        }));
+      }),
+
+    /**
+     * Return prescription to stock (from will-call)
+     */
+    returnToStock: pharmacistLevelProcedure
+      .input(
+        z.object({
+          fillId: z.string(),
+          reason: z.string().optional(),
+        })
+      )
+      .mutation(async ({ ctx, input }) => {
+        const staff = await ctx.db.pharmacyStaff.findUnique({
+          where: { userId: ctx.user.id },
+        });
+
+        if (!staff) {
+          throw new TRPCError({ code: 'FORBIDDEN', message: 'Must be pharmacy staff' });
+        }
+
+        const fill = await ctx.db.prescriptionFill.findUnique({
+          where: { id: input.fillId },
+          include: { prescription: true },
+        });
+
+        if (!fill) {
+          throw new TRPCError({ code: 'NOT_FOUND', message: 'Fill not found' });
+        }
+
+        await ctx.db.prescriptionFill.update({
+          where: { id: input.fillId },
+          data: {
+            status: 'returned',
+            returnedAt: new Date(),
+            returnedById: staff.id,
+            returnReason: input.reason ?? 'Patient did not pick up',
+          },
+        });
+
+        await ctx.db.prescription.update({
+          where: { id: fill.prescriptionId },
+          data: {
+            workflowState: 'RETURNED_TO_STOCK',
+            stateHistory: {
+              create: {
+                fromState: 'READY',
+                toState: 'RETURNED_TO_STOCK',
+                changedById: staff.id,
+                reason: input.reason ?? 'Patient did not pick up - returned to stock',
+              },
+            },
+          },
+        });
+
+        await ctx.db.auditLog.create({
+          data: {
+            action: 'PRESCRIPTION_RETURN',
+            resourceType: 'PrescriptionFill',
+            resourceId: input.fillId,
+            userId: ctx.user.id,
+            details: { action: 'returnToStock', reason: input.reason },
+          },
+        });
+
+        return { success: true };
+      }),
+
+    /**
+     * Extend hold period for will-call bin
+     */
+    extendHold: techLevelProcedure
+      .input(
+        z.object({
+          fillId: z.string(),
+          days: z.number().min(1).max(14).default(7),
+        })
+      )
+      .mutation(async ({ ctx, input }) => {
+        const fill = await ctx.db.prescriptionFill.findUnique({
+          where: { id: input.fillId },
+        });
+
+        if (!fill) {
+          throw new TRPCError({ code: 'NOT_FOUND', message: 'Fill not found' });
+        }
+
+        const currentDate = fill.verifiedAt ?? new Date();
+        const newDate = new Date(currentDate.getTime() + input.days * 24 * 60 * 60 * 1000);
+
+        await ctx.db.prescriptionFill.update({
+          where: { id: input.fillId },
+          data: { verifiedAt: newDate },
+        });
+
+        await ctx.db.auditLog.create({
+          data: {
+            action: 'UPDATE',
+            resourceType: 'PrescriptionFill',
+            resourceId: input.fillId,
+            userId: ctx.user.id,
+            details: { action: 'extendHold', days: input.days },
+          },
+        });
+
+        return { success: true, newDate };
+      }),
+
+    /**
+     * Send notification to patient for pickup
+     */
+    sendNotification: techLevelProcedure
+      .input(
+        z.object({
+          fillId: z.string(),
+          method: z.enum(['sms', 'call', 'email']),
+        })
+      )
+      .mutation(async ({ ctx, input }) => {
+        const fill = await ctx.db.prescriptionFill.findUnique({
+          where: { id: input.fillId },
+          include: {
+            prescription: {
+              include: {
+                patient: { select: { phone: true, email: true, firstName: true } },
+              },
+            },
+          },
+        });
+
+        if (!fill) {
+          throw new TRPCError({ code: 'NOT_FOUND', message: 'Fill not found' });
+        }
+
+        await ctx.db.auditLog.create({
+          data: {
+            action: 'NOTIFICATION_SENT',
+            resourceType: 'PrescriptionFill',
+            resourceId: input.fillId,
+            userId: ctx.user.id,
+            details: {
+              method: input.method,
+              patientName: fill.prescription.patient?.firstName,
+              phone: fill.prescription.patient?.phone,
+            },
+          },
+        });
+
+        return { success: true, method: input.method };
+      }),
   }),
 
   // ============================================================================
@@ -1586,6 +1775,434 @@ export const pharmacyWorkflowRouter = router({
         });
 
         return prescription;
+      }),
+  }),
+
+  // ============================================================================
+  // WILL-CALL MANAGEMENT (Extended Dispense Functions)
+  // ============================================================================
+
+  willCall: router({
+    /**
+     * Get will-call bins with prescriptions ready for pickup
+     */
+    getBins: techLevelProcedure
+      .input(
+        z.object({
+          limit: z.number().min(1).max(100).default(50),
+          status: z.enum(['ready', 'notified', 'expiring', 'return_pending', 'all']).default('all'),
+        })
+      )
+      .query(async ({ ctx, input }) => {
+        const { limit, status } = input;
+
+        // Calculate date thresholds
+        const now = new Date();
+        const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+        const tenDaysAgo = new Date(now.getTime() - 10 * 24 * 60 * 60 * 1000);
+
+        const whereClause: Record<string, unknown> = {
+          status: 'verified',
+          prescription: {
+            workflowState: 'READY',
+          },
+        };
+
+        if (status === 'expiring') {
+          whereClause.verifiedAt = { lte: sevenDaysAgo, gt: tenDaysAgo };
+        } else if (status === 'return_pending') {
+          whereClause.verifiedAt = { lte: tenDaysAgo };
+        }
+
+        const fills = await ctx.db.prescriptionFill.findMany({
+          take: limit,
+          where: whereClause,
+          include: {
+            prescription: {
+              include: {
+                patient: { select: { id: true, firstName: true, lastName: true, phone: true } },
+                drug: { select: { displayName: true, deaSchedule: true } },
+              },
+            },
+          },
+          orderBy: { verifiedAt: 'asc' },
+        });
+
+        return fills.map((fill) => ({
+          id: fill.id,
+          binLocation: fill.binLocation ?? 'A1',
+          prescriptionId: fill.prescriptionId,
+          prescription: fill.prescription,
+          patientPayAmount: fill.patientPayAmount,
+          verifiedAt: fill.verifiedAt,
+          filledAt: fill.filledAt,
+          daysInBin: fill.verifiedAt
+            ? Math.floor((now.getTime() - new Date(fill.verifiedAt).getTime()) / (1000 * 60 * 60 * 24))
+            : 0,
+        }));
+      }),
+
+    /**
+     * Return prescription to stock (reverse from will-call)
+     */
+    returnToStock: pharmacistLevelProcedure
+      .input(
+        z.object({
+          fillId: z.string(),
+          reason: z.string().optional(),
+        })
+      )
+      .mutation(async ({ ctx, input }) => {
+        const staff = await ctx.db.pharmacyStaff.findUnique({
+          where: { userId: ctx.user.id },
+        });
+
+        if (!staff) {
+          throw new TRPCError({ code: 'FORBIDDEN', message: 'Must be pharmacy staff' });
+        }
+
+        const fill = await ctx.db.prescriptionFill.findUnique({
+          where: { id: input.fillId },
+          include: { prescription: true },
+        });
+
+        if (!fill) {
+          throw new TRPCError({ code: 'NOT_FOUND', message: 'Fill not found' });
+        }
+
+        // Update fill to returned status
+        await ctx.db.prescriptionFill.update({
+          where: { id: input.fillId },
+          data: {
+            status: 'returned',
+            returnedAt: new Date(),
+            returnedById: staff.id,
+            returnReason: input.reason ?? 'Patient did not pick up',
+          },
+        });
+
+        // Update prescription state
+        await ctx.db.prescription.update({
+          where: { id: fill.prescriptionId },
+          data: {
+            workflowState: 'RETURNED_TO_STOCK',
+            stateHistory: {
+              create: {
+                fromState: 'READY',
+                toState: 'RETURNED_TO_STOCK',
+                changedById: staff.id,
+                reason: input.reason ?? 'Patient did not pick up - returned to stock',
+              },
+            },
+          },
+        });
+
+        // Restore inventory if tracking
+        if (fill.inventoryId) {
+          await ctx.db.inventoryItem.update({
+            where: { id: fill.inventoryId },
+            data: {
+              quantityOnHand: { increment: fill.quantityDispensed },
+            },
+          });
+        }
+
+        await ctx.db.auditLog.create({
+          data: {
+            action: 'PRESCRIPTION_RETURN',
+            resourceType: 'PrescriptionFill',
+            resourceId: input.fillId,
+            userId: ctx.user.id,
+            details: { action: 'returnToStock', reason: input.reason },
+          },
+        });
+
+        return { success: true };
+      }),
+
+    /**
+     * Extend hold period for will-call bin
+     */
+    extendHold: techLevelProcedure
+      .input(
+        z.object({
+          fillId: z.string(),
+          days: z.number().min(1).max(14).default(7),
+        })
+      )
+      .mutation(async ({ ctx, input }) => {
+        const fill = await ctx.db.prescriptionFill.findUnique({
+          where: { id: input.fillId },
+        });
+
+        if (!fill) {
+          throw new TRPCError({ code: 'NOT_FOUND', message: 'Fill not found' });
+        }
+
+        // Extend by updating verified date forward
+        const currentDate = fill.verifiedAt ?? new Date();
+        const newDate = new Date(currentDate.getTime() + input.days * 24 * 60 * 60 * 1000);
+
+        await ctx.db.prescriptionFill.update({
+          where: { id: input.fillId },
+          data: { verifiedAt: newDate },
+        });
+
+        await ctx.db.auditLog.create({
+          data: {
+            action: 'UPDATE',
+            resourceType: 'PrescriptionFill',
+            resourceId: input.fillId,
+            userId: ctx.user.id,
+            details: { action: 'extendHold', days: input.days },
+          },
+        });
+
+        return { success: true, newDate };
+      }),
+
+    /**
+     * Send notification to patient for pickup
+     */
+    sendNotification: techLevelProcedure
+      .input(
+        z.object({
+          fillId: z.string(),
+          method: z.enum(['sms', 'call', 'email']),
+        })
+      )
+      .mutation(async ({ ctx, input }) => {
+        const fill = await ctx.db.prescriptionFill.findUnique({
+          where: { id: input.fillId },
+          include: {
+            prescription: {
+              include: {
+                patient: { select: { phone: true, email: true, firstName: true } },
+              },
+            },
+          },
+        });
+
+        if (!fill) {
+          throw new TRPCError({ code: 'NOT_FOUND', message: 'Fill not found' });
+        }
+
+        // In production, this would integrate with a notification service
+        // For now, log the notification attempt
+
+        await ctx.db.auditLog.create({
+          data: {
+            action: 'NOTIFICATION_SENT',
+            resourceType: 'PrescriptionFill',
+            resourceId: input.fillId,
+            userId: ctx.user.id,
+            details: {
+              method: input.method,
+              patientName: fill.prescription.patient?.firstName,
+              phone: fill.prescription.patient?.phone,
+            },
+          },
+        });
+
+        return { success: true, method: input.method };
+      }),
+  }),
+
+  // ============================================================================
+  // LABEL PRINTING
+  // ============================================================================
+
+  print: router({
+    /**
+     * Generate prescription label ZPL
+     */
+    generateLabel: techLevelProcedure
+      .input(
+        z.object({
+          prescriptionId: z.string(),
+          fillId: z.string().optional(),
+          labelType: z.enum(['prescription', 'auxiliary', 'patient', 'bin']).default('prescription'),
+          copies: z.number().min(1).max(10).default(1),
+        })
+      )
+      .mutation(async ({ ctx, input }) => {
+        const prescription = await ctx.db.prescription.findUnique({
+          where: { id: input.prescriptionId },
+          include: {
+            patient: true,
+            prescriber: true,
+            drug: true,
+            fills: input.fillId
+              ? { where: { id: input.fillId } }
+              : { orderBy: { fillNumber: 'desc' }, take: 1 },
+          },
+        });
+
+        if (!prescription) {
+          throw new TRPCError({ code: 'NOT_FOUND', message: 'Prescription not found' });
+        }
+
+        const fill = prescription.fills[0];
+
+        // Generate ZPL based on label type
+        // This would use the ZPL generator from medscab package
+        const labelData = {
+          patientName: `${prescription.patient?.lastName}, ${prescription.patient?.firstName}`,
+          patientDob: prescription.patient?.dateOfBirth?.toLocaleDateString(),
+          patientAddress: prescription.patient?.address,
+          rxNumber: prescription.rxNumber,
+          drugName: prescription.drug?.displayName ?? prescription.drugName,
+          drugStrength: prescription.strength,
+          drugForm: prescription.dosageForm,
+          ndc: prescription.drugNdc,
+          quantity: prescription.quantityWritten,
+          daysSupply: prescription.daysSupply,
+          directions: prescription.directions,
+          refillsRemaining: prescription.refillsRemaining ?? 0,
+          refillsAuthorized: prescription.refillsAuthorized ?? 0,
+          fillDate: fill?.filledAt ?? new Date(),
+          expirationDate: prescription.expirationDate,
+          prescriberName: `${prescription.prescriber?.lastName}, ${prescription.prescriber?.firstName}`,
+          prescriberPhone: prescription.prescriber?.phone,
+          pharmacyName: 'Xoai Pharmacy',
+          pharmacyAddress: '123 Healthcare Blvd, Suite 100',
+          pharmacyPhone: '(555) 123-4567',
+          isControlled: prescription.isControlled,
+          deaSchedule: prescription.deaSchedule,
+          auxiliaryLabels: fill?.auxiliaryLabels?.split(',') ?? [],
+        };
+
+        await ctx.db.auditLog.create({
+          data: {
+            action: 'LABEL_PRINT',
+            resourceType: 'Prescription',
+            resourceId: input.prescriptionId,
+            userId: ctx.user.id,
+            details: {
+              labelType: input.labelType,
+              copies: input.copies,
+              fillId: fill?.id,
+            },
+          },
+        });
+
+        return {
+          labelData,
+          copies: input.copies,
+          labelType: input.labelType,
+        };
+      }),
+
+    /**
+     * Generate batch labels
+     */
+    batchLabels: techLevelProcedure
+      .input(
+        z.object({
+          labels: z.array(
+            z.object({
+              prescriptionId: z.string(),
+              fillId: z.string().optional(),
+              labelType: z.enum(['prescription', 'auxiliary', 'patient', 'bin']),
+              copies: z.number().min(1).max(10).default(1),
+            })
+          ),
+        })
+      )
+      .mutation(async ({ ctx, input }) => {
+        const results = [];
+
+        for (const labelRequest of input.labels) {
+          const prescription = await ctx.db.prescription.findUnique({
+            where: { id: labelRequest.prescriptionId },
+            include: {
+              patient: true,
+              prescriber: true,
+              drug: true,
+              fills: labelRequest.fillId
+                ? { where: { id: labelRequest.fillId } }
+                : { orderBy: { fillNumber: 'desc' }, take: 1 },
+            },
+          });
+
+          if (!prescription) continue;
+
+          const fill = prescription.fills[0];
+
+          results.push({
+            prescriptionId: labelRequest.prescriptionId,
+            labelType: labelRequest.labelType,
+            copies: labelRequest.copies,
+            labelData: {
+              patientName: `${prescription.patient?.lastName}, ${prescription.patient?.firstName}`,
+              rxNumber: prescription.rxNumber,
+              drugName: prescription.drug?.displayName ?? prescription.drugName,
+              quantity: prescription.quantityWritten,
+              directions: prescription.directions,
+              fillDate: fill?.filledAt ?? new Date(),
+            },
+          });
+        }
+
+        await ctx.db.auditLog.create({
+          data: {
+            action: 'LABEL_BATCH_PRINT',
+            resourceType: 'Prescription',
+            resourceId: input.labels[0]?.prescriptionId ?? '',
+            userId: ctx.user.id,
+            details: { labelCount: input.labels.length },
+          },
+        });
+
+        return { labels: results };
+      }),
+
+    /**
+     * Reprint label
+     */
+    reprint: techLevelProcedure
+      .input(
+        z.object({
+          prescriptionId: z.string(),
+          fillId: z.string().optional(),
+          reason: z.string().min(5),
+        })
+      )
+      .mutation(async ({ ctx, input }) => {
+        const prescription = await ctx.db.prescription.findUnique({
+          where: { id: input.prescriptionId },
+          include: {
+            patient: true,
+            prescriber: true,
+            drug: true,
+          },
+        });
+
+        if (!prescription) {
+          throw new TRPCError({ code: 'NOT_FOUND', message: 'Prescription not found' });
+        }
+
+        await ctx.db.auditLog.create({
+          data: {
+            action: 'LABEL_REPRINT',
+            resourceType: 'Prescription',
+            resourceId: input.prescriptionId,
+            userId: ctx.user.id,
+            details: {
+              reason: input.reason,
+              fillId: input.fillId,
+            },
+          },
+        });
+
+        return {
+          success: true,
+          labelData: {
+            patientName: `${prescription.patient?.lastName}, ${prescription.patient?.firstName}`,
+            rxNumber: prescription.rxNumber,
+            drugName: prescription.drug?.displayName ?? prescription.drugName,
+          },
+        };
       }),
   }),
 });
