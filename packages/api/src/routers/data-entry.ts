@@ -4,9 +4,9 @@ import {
   validateDataEntry,
   buildSig,
   SIG_COMPONENTS,
-  DAW_CODES,
+  DataEntryDAWCodes as DAW_CODES,
   type SigComponents,
-} from '@xoai/medscab/data-entry';
+} from '@xoai/medscab';
 
 export const dataEntryRouter = router({
   validate: techLevelProcedure

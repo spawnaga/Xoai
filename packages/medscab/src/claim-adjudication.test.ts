@@ -189,7 +189,7 @@ describe('Claim Adjudication Module', () => {
 
       expect(result.recommendCash).toBe(true);
       expect(result.savings).toBe(10);
-      expect(result.recommendation).toContain('cash price is $10.00 cheaper');
+      expect(result.recommendation).toContain('Cash price is $10.00 cheaper');
     });
 
     it('should recommend insurance when cheaper', () => {

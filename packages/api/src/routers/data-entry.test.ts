@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { validateDataEntry, buildSig, DAW_CODES } from '@xoai/medscab/data-entry';
+import { validateDataEntry, buildSig, DataEntryDAWCodes as DAW_CODES } from '@xoai/medscab';
 
 describe('Data Entry Router', () => {
   describe('validateDataEntry', () => {
