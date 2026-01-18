@@ -1,7 +1,8 @@
-import { getServerSession, type NextAuthOptions } from 'next-auth';
+import { getServerSession } from 'next-auth';
 import { redirect } from 'next/navigation';
 import { cache } from 'react';
 import { db } from '@xoai/db';
+import { authOptions } from '@/lib/auth-options';
 
 /**
  * HIPAA-Compliant Server-Side Authentication Utilities
@@ -39,8 +40,8 @@ export interface AuthSession {
  * @returns Session or null if not authenticated
  */
 export const getSession = cache(async (): Promise<AuthSession | null> => {
-  // Get raw session from NextAuth
-  const session = await getServerSession();
+  // Get raw session from NextAuth with authOptions to decode custom JWT fields
+  const session = await getServerSession(authOptions);
 
   if (!session?.user) {
     return null;

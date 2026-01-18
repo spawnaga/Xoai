@@ -1,10 +1,10 @@
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient } from '@xoai/db';
 import bcrypt from 'bcryptjs';
 
 const prisma = new PrismaClient();
 
 async function main() {
-  const hashedPassword = await bcrypt.hash('masteruser#1', 10);
+  const hashedPassword = await bcrypt.hash('MasterUser#1', 10);
 
   const masterUser = await prisma.user.upsert({
     where: { username: 'Masteruser' },

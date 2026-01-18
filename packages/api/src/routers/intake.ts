@@ -1,9 +1,9 @@
 import { z } from 'zod';
-import { router, techLevelProcedure } from '../trpc';
+import { router, protectedProcedure } from '../trpc';
 import { TRPCError } from '@trpc/server';
 
 export const intakeRouter = router({
-  list: techLevelProcedure
+  list: protectedProcedure
     .input(
       z.object({
         status: z.enum(['PENDING', 'IN_REVIEW', 'APPROVED', 'REJECTED']).optional(),
@@ -34,7 +34,7 @@ export const intakeRouter = router({
       return { items, nextCursor };
     }),
 
-  getById: techLevelProcedure
+  getById: protectedProcedure
     .input(z.object({ id: z.string() }))
     .query(async ({ ctx, input }) => {
       const intake = await ctx.db.prescriptionIntake.findUnique({
@@ -52,7 +52,7 @@ export const intakeRouter = router({
       return intake;
     }),
 
-  convertToPrescription: techLevelProcedure
+  convertToPrescription: protectedProcedure
     .input(z.object({ intakeId: z.string() }))
     .mutation(async ({ ctx, input }) => {
       const intake = await ctx.db.prescriptionIntake.findUnique({
@@ -137,7 +137,7 @@ export const intakeRouter = router({
       return prescription;
     }),
 
-  updateStatus: techLevelProcedure
+  updateStatus: protectedProcedure
     .input(
       z.object({
         id: z.string(),

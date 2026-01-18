@@ -61,7 +61,9 @@
       "Bash(npx next dev -p 3000)",
       "Bash(netstat:*)",
       "Bash(powershell:*)",
-      "Bash(python3:*)"
+      "Bash(python3:*)",
+      "Bash(npx pnpm:*)",
+      "Bash(DATABASE_URL=\"mysql://xoai_user:xoai_password@localhost:3306/xoai\" npx tsx:*)"
     ]
   }
 }

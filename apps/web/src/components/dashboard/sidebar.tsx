@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { signOut } from 'next-auth/react';
@@ -27,29 +27,25 @@ interface SidebarProps {
   };
 }
 
+// Primary pharmacy workflow navigation
 const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: HomeIcon },
-  { name: 'Patients', href: '/dashboard/patients', icon: UsersIcon },
-  { name: 'Encounters', href: '/dashboard/encounters', icon: CalendarIcon },
-  { name: 'Observations', href: '/dashboard/observations', icon: ChartIcon },
-  { name: 'Medications', href: '/dashboard/medications', icon: PillIcon },
-  { name: 'Pharmacy', href: '/dashboard/pharmacy', icon: PharmacyIcon },
-  { name: 'FHIR Export', href: '/dashboard/fhir', icon: DocumentIcon },
+  { name: 'Intake', href: '/dashboard/pharmacy/intake', icon: InboxIcon },
+  { name: 'Data Entry', href: '/dashboard/pharmacy/data-entry', icon: ClipboardIcon },
+  { name: 'Claims', href: '/dashboard/pharmacy/claim', icon: CreditCardIcon },
+  { name: 'Fill', href: '/dashboard/pharmacy/fill', icon: BeakerIcon },
+  { name: 'Verify', href: '/dashboard/pharmacy/verify', icon: CheckCircleIcon },
+  { name: 'Pickup', href: '/dashboard/pharmacy/pickup', icon: ShoppingBagIcon },
 ];
 
-// Pharmacy workflow navigation
-const pharmacyNav = [
-  { name: 'Intake', href: '/dashboard/pharmacy/intake' },
-  { name: 'Data Entry', href: '/dashboard/pharmacy/data-entry' },
-  { name: 'Claims', href: '/dashboard/pharmacy/claim' },
-  { name: 'Fill', href: '/dashboard/pharmacy/fill' },
-  { name: 'Verify', href: '/dashboard/pharmacy/verify' },
-  { name: 'Pickup', href: '/dashboard/pharmacy/pickup' },
-];
-
+// Secondary navigation
 const secondaryNav = [
+  { name: 'Will-Call', href: '/dashboard/pharmacy/will-call', icon: ArchiveBoxIcon },
+  { name: 'Inventory', href: '/dashboard/pharmacy/inventory', icon: CubeIcon },
+  { name: 'PDMP', href: '/dashboard/pharmacy/pdmp', icon: ShieldCheckIcon },
+  { name: 'Transfers', href: '/dashboard/pharmacy/transfers', icon: ArrowsRightLeftIcon },
+  { name: 'Staff', href: '/dashboard/pharmacy/staff', icon: UsersIcon },
   { name: 'Settings', href: '/dashboard/settings', icon: SettingsIcon },
-  { name: 'Help', href: '/dashboard/help', icon: HelpIcon },
 ];
 
 // Icon components
@@ -57,6 +53,86 @@ function HomeIcon({ className = "h-5 w-5" }: { className?: string }) {
   return (
     <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+    </svg>
+  );
+}
+
+function InboxIcon({ className = "h-5 w-5" }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
+    </svg>
+  );
+}
+
+function ClipboardIcon({ className = "h-5 w-5" }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
+    </svg>
+  );
+}
+
+function CreditCardIcon({ className = "h-5 w-5" }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+    </svg>
+  );
+}
+
+function BeakerIcon({ className = "h-5 w-5" }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
+    </svg>
+  );
+}
+
+function CheckCircleIcon({ className = "h-5 w-5" }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+    </svg>
+  );
+}
+
+function ShoppingBagIcon({ className = "h-5 w-5" }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+    </svg>
+  );
+}
+
+function ArchiveBoxIcon({ className = "h-5 w-5" }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
+    </svg>
+  );
+}
+
+function CubeIcon({ className = "h-5 w-5" }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+    </svg>
+  );
+}
+
+function ShieldCheckIcon({ className = "h-5 w-5" }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+    </svg>
+  );
+}
+
+function ArrowsRightLeftIcon({ className = "h-5 w-5" }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
     </svg>
   );
 }
@@ -69,59 +145,11 @@ function UsersIcon({ className = "h-5 w-5" }: { className?: string }) {
   );
 }
 
-function CalendarIcon({ className = "h-5 w-5" }: { className?: string }) {
-  return (
-    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-    </svg>
-  );
-}
-
-function ChartIcon({ className = "h-5 w-5" }: { className?: string }) {
-  return (
-    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-    </svg>
-  );
-}
-
-function PillIcon({ className = "h-5 w-5" }: { className?: string }) {
-  return (
-    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
-    </svg>
-  );
-}
-
-function DocumentIcon({ className = "h-5 w-5" }: { className?: string }) {
-  return (
-    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-    </svg>
-  );
-}
-
-function PharmacyIcon({ className = "h-5 w-5" }: { className?: string }) {
-  return (
-    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
-    </svg>
-  );
-}
-
 function SettingsIcon({ className = "h-5 w-5" }: { className?: string }) {
   return (
     <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-    </svg>
-  );
-}
-
-function HelpIcon({ className = "h-5 w-5" }: { className?: string }) {
-  return (
-    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
     </svg>
   );
 }
@@ -142,18 +170,24 @@ function SearchIcon({ className = "h-5 w-5" }: { className?: string }) {
   );
 }
 
+function PillIcon({ className = "h-5 w-5" }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
+    </svg>
+  );
+}
+
 export function DashboardSidebar({ user }: SidebarProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const pathname = usePathname();
 
-  const isActive = (href: string) => pathname === href;
-  const isPharmacySection = pathname.startsWith('/dashboard/pharmacy');
-
-  // Auto-expand pharmacy submenu when on pharmacy pages
-  const [pharmacyExpanded, setPharmacyExpanded] = useState(isPharmacySection);
-  useEffect(() => {
-    if (isPharmacySection) setPharmacyExpanded(true);
-  }, [isPharmacySection]);
+  const isActive = (href: string) => {
+    if (href === '/dashboard') {
+      return pathname === '/dashboard';
+    }
+    return pathname.startsWith(href);
+  };
 
   const userInitial = user.name?.[0]?.toUpperCase() || user.email[0]?.toUpperCase() || 'U';
 
@@ -171,12 +205,10 @@ export function DashboardSidebar({ user }: SidebarProps) {
             <div className="flex h-16 items-center justify-between px-6 border-b border-slate-100">
               <div className="flex items-center gap-2">
                 <div className="w-8 h-8 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-lg flex items-center justify-center">
-                  <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
-                  </svg>
+                  <PillIcon className="w-5 h-5 text-white" />
                 </div>
                 <span className="text-lg font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
-                  Xoai
+                  Xoai Pharmacy
                 </span>
               </div>
               <button
@@ -191,7 +223,7 @@ export function DashboardSidebar({ user }: SidebarProps) {
 
             {/* Mobile sidebar nav */}
             <nav className="flex-1 px-4 py-6 space-y-1 overflow-y-auto">
-              <p className="px-3 text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">Main</p>
+              <p className="px-3 text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">Workflow</p>
               {navigation.map((item) => (
                 <Link
                   key={item.name}
@@ -209,7 +241,7 @@ export function DashboardSidebar({ user }: SidebarProps) {
               ))}
 
               <div className="pt-6">
-                <p className="px-3 text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">Support</p>
+                <p className="px-3 text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">Operations</p>
                 {secondaryNav.map((item) => (
                   <Link
                     key={item.name}
@@ -262,91 +294,37 @@ export function DashboardSidebar({ user }: SidebarProps) {
           <div className="flex h-16 items-center px-6 border-b border-slate-100">
             <Link href="/dashboard" className="flex items-center gap-2">
               <div className="w-8 h-8 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-lg flex items-center justify-center shadow-lg shadow-blue-500/25">
-                <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
-                </svg>
+                <PillIcon className="w-5 h-5 text-white" />
               </div>
               <span className="text-lg font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
-                Xoai Healthcare
+                Xoai Pharmacy
               </span>
             </Link>
           </div>
 
           {/* Sidebar nav */}
           <nav className="flex-1 px-4 py-6 space-y-1 overflow-y-auto">
-            <p className="px-3 text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">Main</p>
+            <p className="px-3 text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">Workflow</p>
             {navigation.map((item) => (
-              <div key={item.name}>
-                {item.name === 'Pharmacy' ? (
-                  <>
-                    <button
-                      onClick={() => setPharmacyExpanded(!pharmacyExpanded)}
-                      className={`w-full flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all ${
-                        isPharmacySection
-                          ? 'bg-gradient-to-r from-blue-50 to-indigo-50 text-blue-700 shadow-sm'
-                          : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
-                      }`}
-                    >
-                      <item.icon className={isPharmacySection ? 'text-blue-600' : 'text-slate-400'} />
-                      {item.name}
-                      <svg
-                        className={`ml-auto h-4 w-4 transition-transform ${pharmacyExpanded ? 'rotate-90' : ''}`}
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                      >
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                      </svg>
-                    </button>
-                    {pharmacyExpanded && (
-                      <div className="ml-4 mt-1 space-y-0.5 border-l-2 border-slate-100 pl-3">
-                        <Link
-                          href="/dashboard/pharmacy"
-                          className={`block rounded-lg px-3 py-2 text-xs font-medium transition-colors ${
-                            pathname === '/dashboard/pharmacy'
-                              ? 'text-blue-700 bg-blue-50'
-                              : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50'
-                          }`}
-                        >
-                          Overview
-                        </Link>
-                        {pharmacyNav.map((subItem) => (
-                          <Link
-                            key={subItem.name}
-                            href={subItem.href}
-                            className={`block rounded-lg px-3 py-2 text-xs font-medium transition-colors ${
-                              isActive(subItem.href)
-                                ? 'text-blue-700 bg-blue-50'
-                                : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50'
-                            }`}
-                          >
-                            {subItem.name}
-                          </Link>
-                        ))}
-                      </div>
-                    )}
-                  </>
-                ) : (
-                  <Link
-                    href={item.href}
-                    className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all ${
-                      isActive(item.href)
-                        ? 'bg-gradient-to-r from-blue-50 to-indigo-50 text-blue-700 shadow-sm'
-                        : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
-                    }`}
-                  >
-                    <item.icon className={isActive(item.href) ? 'text-blue-600' : 'text-slate-400'} />
-                    {item.name}
-                    {isActive(item.href) && (
-                      <div className="ml-auto w-1.5 h-1.5 rounded-full bg-blue-600"></div>
-                    )}
-                  </Link>
+              <Link
+                key={item.name}
+                href={item.href}
+                className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all ${
+                  isActive(item.href)
+                    ? 'bg-gradient-to-r from-blue-50 to-indigo-50 text-blue-700 shadow-sm'
+                    : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                }`}
+              >
+                <item.icon className={isActive(item.href) ? 'text-blue-600' : 'text-slate-400'} />
+                {item.name}
+                {isActive(item.href) && (
+                  <div className="ml-auto w-1.5 h-1.5 rounded-full bg-blue-600"></div>
                 )}
-              </div>
+              </Link>
             ))}
 
             <div className="pt-6">
-              <p className="px-3 text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">Support</p>
+              <p className="px-3 text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">Operations</p>
               {secondaryNav.map((item) => (
                 <Link
                   key={item.name}
@@ -443,7 +421,7 @@ export function DashboardHeader({ user }: { user: SidebarProps['user'] }) {
           <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
           <input
             type="text"
-            placeholder="Search patients, records..."
+            placeholder="Search prescriptions, patients..."
             className="w-full pl-10 pr-4 py-2 text-sm bg-slate-100 border-0 rounded-xl focus:bg-white focus:ring-2 focus:ring-blue-500/20 focus:outline-none transition-all"
           />
         </div>
@@ -459,7 +437,7 @@ export function DashboardHeader({ user }: { user: SidebarProps['user'] }) {
         <div className="flex items-center gap-3 pl-4 border-l border-slate-200">
           <div className="text-right">
             <p className="text-sm font-medium text-slate-900">{user.name || 'User'}</p>
-            <p className="text-xs text-slate-500">{user.role || 'Healthcare Provider'}</p>
+            <p className="text-xs text-slate-500">{user.role || 'Pharmacy Staff'}</p>
           </div>
           <div className="h-9 w-9 rounded-full bg-gradient-to-br from-blue-500 to-indigo-500 flex items-center justify-center shadow-md shadow-blue-500/25">
             <span className="text-sm font-semibold text-white">{userInitial}</span>
